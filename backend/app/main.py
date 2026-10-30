@@ -77,3 +77,4 @@ async def root():
         "docs": "/docs",
         "api_v1": "/api/v1",
     }
+

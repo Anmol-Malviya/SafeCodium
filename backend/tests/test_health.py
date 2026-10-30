@@ -39,3 +39,4 @@ async def test_health_endpoint():
         assert data["free_ram_gb"] > 0
         assert "python_version" in data
         assert "os" in data
+

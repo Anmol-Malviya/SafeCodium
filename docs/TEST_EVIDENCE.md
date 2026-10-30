@@ -13,4 +13,6 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-SDK-01` | `python -c "from google import genai; ..."` | Confirm official Google GenAI SDK availability | 0 | PASSED (`google-genai` 2.29.0 imported cleanly) |
 | `TEST-BE-01` | `python -m pytest backend/tests/test_health.py` | Verify root and health endpoints via ASGI async client | 0 | PASSED (2/2 tests passed, DB async query verified) |
 | `TEST-BE-02` | `python backend/tests/test_live_server.py` | Verify live HTTP server boot, GPU telemetry, and DB connection | 0 | PASSED (HTTP 200, GPU RTX 3050 detected, DB connected) |
+| `TEST-FE-01` | `npm install` | Install React 19, Vite, Tailwind CSS, Monaco, Lucide dependencies | 0 | PASSED (259 packages added, zero audit vulnerabilities) |
+| `TEST-FE-02` | `npm run build` | TypeScript compile (`tsc -b`) and Vite production bundle | 0 | PASSED (2,126 modules transformed, dist built in 6.41s) |
 

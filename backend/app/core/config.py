@@ -68,3 +68,4 @@ settings = Settings()
 # Ensure directories exist
 for path in [settings.DATA_DIR, settings.UPLOAD_DIR, settings.WORKSPACE_DIR, settings.ARTIFACT_DIR]:
     path.mkdir(parents=True, exist_ok=True)
+
