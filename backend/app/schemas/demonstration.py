@@ -22,3 +22,4 @@ class EndToEndDemonstrationResponse(BaseModel):
     verification_passport_id: str
     passport_signature_sha256: str
     stages: List[DemoStageReportResponse]
+

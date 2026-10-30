@@ -32,3 +32,4 @@ async def test_end_to_end_demonstration_cwe476():
         assert data["final_verdict"] == "VERIFIED"
         assert data["stages_passed"] == 10
         assert data["verification_passport_id"].startswith("PASSPORT-E2E-")
+
