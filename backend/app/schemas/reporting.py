@@ -34,3 +34,4 @@ class VerificationPassportResponse(BaseModel):
     cryptographic_hashes: CryptographicEvidenceHashesResponse
     defensive_idioms_applied: List[str]
     compliance_frameworks: List[str]
+

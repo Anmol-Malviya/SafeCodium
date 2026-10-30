@@ -143,3 +143,4 @@ class SecurityAssuranceReporter:
             defensive_idioms_applied=defensive_idioms,
             compliance_frameworks=compliance,
         )
+

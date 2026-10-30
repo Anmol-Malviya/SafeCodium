@@ -151,7 +151,15 @@
 - **Action:** Added schemas in `backend/app/schemas/reporting.py` and REST endpoint `GET /api/v1/reports/passport/{patch_id}` in `backend/app/api/v1/reports.py`.
 - **Action:** Upgraded `frontend/src/pages/SecurityReports.tsx` with executive certificate view, SHA-256 copy actions, print-ready layout, and JSON passport download.
 - **Action:** Authored Pytest test suite `backend/tests/test_passport_reporting.py` (`TEST-REP-01`, `TEST-REP-02`). All 36 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 16 completed and verified.
+- **Result:** Phase 16 completed and verified (`498249a`).
+
+### Phase 17: Full-Stack System Integration & Live Streaming
+- **Action:** Created `backend/app/api/v1/analytics.py` computing real-time pipeline KPIs across all phases (total projects, CWE severity breakdown, verified patches, success rates) and historical activity ledger.
+- **Action:** Mounted analytics router in `backend/app/api/v1/router.py` (`GET /api/v1/analytics/dashboard`).
+- **Action:** Upgraded `frontend/src/pages/Dashboard.tsx` with live telemetry polling, 4 KPI cards, interactive 8-step pipeline visual walkthrough, and real-time audit event feed.
+- **Action:** Upgraded `frontend/src/pages/ProjectHistory.tsx` with indexed firmware repository ledger and immutable audit events.
+- **Action:** Authored Pytest test suite `backend/tests/test_analytics.py` (`TEST-INT-01`). Full backend test suite of 37 tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 17 completed and verified.
 
 
 

@@ -56,6 +56,9 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-REP-01` | `pytest backend/tests/test_passport_reporting.py::test_passport_generator_direct` | Direct cryptographic passport generation & SHA-256 calculation | 0 | PASSED (CVSS reduced 9.8 -> 0.0, SHA-256 chain length 64 verified) |
 | `TEST-REP-02` | `pytest backend/tests/test_passport_reporting.py::test_api_verification_passport_endpoint` | Verify HTTP `/api/v1/reports/passport/{patch_id}` | 0 | PASSED (HTTP 200, passport signature generated, status VERIFIED) |
 | `TEST-FE-16` | `npm run build` | Verify frontend build with Security Assurance Reports & Passports UI | 0 | PASSED (2,138 modules transformed, dist built in 8.60s) |
+| `TEST-INT-01` | `pytest backend/tests/test_analytics.py::test_analytics_dashboard_endpoint` | Verify full-stack analytics endpoint `/api/v1/analytics/dashboard` | 0 | PASSED (HTTP 200, real-time KPIs and activity feed retrieved) |
+| `TEST-FE-17` | `npm run build` | Verify frontend build with integrated Dashboard & Project History UI | 0 | PASSED (2,138 modules transformed, dist built in 8.75s) |
+
 
 
 

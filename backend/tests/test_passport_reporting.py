@@ -113,3 +113,4 @@ async def test_api_verification_passport_endpoint(tmp_path):
         assert data["cwe_id"] == "CWE-120"
         assert data["cvss_risk_reduction"] == 9.8
         assert data["cryptographic_hashes"]["passport_signature_sha256"] is not None
+

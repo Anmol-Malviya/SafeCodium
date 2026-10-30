@@ -517,6 +517,38 @@ export const getVerificationPassport = async (patchId: string): Promise<Verifica
   return response.data.data;
 };
 
+export interface PipelineKpisData {
+  total_projects: number;
+  total_scans: number;
+  total_vulnerabilities: number;
+  critical_vulnerabilities: number;
+  high_vulnerabilities: number;
+  total_patches_synthesized: number;
+  verified_patches: number;
+  rejection_rate_percentage: number;
+  verification_success_rate: number;
+}
+
+export interface RecentActivityItemData {
+  id: string;
+  event_type: string;
+  title: string;
+  target: string;
+  timestamp: string;
+  status: string;
+}
+
+export interface FullPipelineDashboardData {
+  kpis: PipelineKpisData;
+  recent_activity: RecentActivityItemData[];
+}
+
+export const getDashboardAnalytics = async (): Promise<FullPipelineDashboardData> => {
+  const response = await api.get<ApiResponse<FullPipelineDashboardData>>('/analytics/dashboard');
+  return response.data.data;
+};
+
+
 
 
 
