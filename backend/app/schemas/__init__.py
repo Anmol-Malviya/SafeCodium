@@ -11,6 +11,11 @@ from backend.app.schemas.scan import (
     VulnerabilityResponse,
     ScanDetailResponse,
 )
+from backend.app.schemas.patch import (
+    PatchGenerateRequest,
+    PatchResponse,
+    PatchDetailResponse,
+)
 
 __all__ = [
     "ApiResponse",
@@ -20,4 +25,7 @@ __all__ = [
     "ScanResponse",
     "VulnerabilityResponse",
     "ScanDetailResponse",
+    "PatchGenerateRequest",
+    "PatchResponse",
+    "PatchDetailResponse",
 ]

@@ -262,8 +262,50 @@ export const analyzeVulnerabilityRootCause = async (vulnId: string, provider?: s
   return response.data.data;
 };
 
-export const synthesizeAiPatch = async (request: AiPatchRequestData): Promise<AiPatchResponseData> => {
-  const response = await api.post<ApiResponse<AiPatchResponseData>>('/ai/patch', request);
+export interface PatchData {
+  id: string;
+  vulnerability_id: string;
+  ai_provider: string;
+  model_name: string;
+  unified_diff: string;
+  root_cause_explanation: string;
+  repair_strategy: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatchDetailData {
+  patch: PatchData;
+  defensive_checks_added: string[];
+  side_effect_assessment: string;
+}
+
+export const generatePatch = async (
+  vulnerabilityId: string,
+  provider?: string,
+  repairStrategy?: string,
+): Promise<PatchDetailData> => {
+  const response = await api.post<ApiResponse<PatchDetailData>>('/patches/generate', {
+    vulnerability_id: vulnerabilityId,
+    provider: provider || 'gemini',
+    repair_strategy: repairStrategy,
+  });
+  return response.data.data;
+};
+
+export const getPatch = async (patchId: string): Promise<PatchData> => {
+  const response = await api.get<ApiResponse<PatchData>>(`/patches/${patchId}`);
+  return response.data.data;
+};
+
+export const listVulnerabilityPatches = async (vulnerabilityId: string): Promise<PatchData[]> => {
+  const response = await api.get<ApiResponse<PatchData[]>>(`/patches/vulnerability/${vulnerabilityId}`);
+  return response.data.data;
+};
+
+export const listProjectPatches = async (projectId: string): Promise<PatchData[]> => {
+  const response = await api.get<ApiResponse<PatchData[]>>(`/patches/project/${projectId}`);
   return response.data.data;
 };
 
