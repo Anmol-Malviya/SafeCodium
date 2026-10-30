@@ -50,5 +50,9 @@ data/artifacts/
 # OS
 .DS_Store
 Thumbs.db
+*.tsbuildinfo
+
+.DS_Store
+Thumbs.db
 Desktop.ini
 

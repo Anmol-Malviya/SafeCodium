@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FileCode2, Network, Cpu, HardDrive, ShieldAlert, Radio, Activity, CheckCircle2 } from 'lucide-react';
-import { listProjects, getProjectIotSummary, getProjectFiles, ProjectData, IotProjectContextSummaryData, SourceFileData } from '../services/api';
+import { listProjects, getProjectIotSummary, getProjectFiles, runDemonstration, ProjectData, IotProjectContextSummaryData, SourceFileData } from '../services/api';
 
 export const CodeAnalysis: React.FC = () => {
   const [projects, setProjects] = useState<ProjectData[]>([]);
@@ -54,7 +54,6 @@ export const CodeAnalysis: React.FC = () => {
     setIsDemoRunning(true);
     setDemoResult(null);
     try {
-      const { runDemonstration } = await import('../services/api');
       const res = await runDemonstration(cwe);
       setDemoResult(res);
     } catch (err: any) {
