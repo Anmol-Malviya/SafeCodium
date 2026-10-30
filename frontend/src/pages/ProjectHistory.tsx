@@ -18,3 +18,4 @@ export const ProjectHistory: React.FC = () => {
     </div>
   );
 };
+

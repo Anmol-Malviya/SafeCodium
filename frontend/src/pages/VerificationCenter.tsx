@@ -66,3 +66,4 @@ export const VerificationCenter: React.FC = () => {
     </div>
   );
 };
+

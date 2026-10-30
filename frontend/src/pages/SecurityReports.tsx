@@ -41,3 +41,4 @@ export const SecurityReports: React.FC = () => {
     </div>
   );
 };
+

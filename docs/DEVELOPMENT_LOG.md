@@ -36,6 +36,16 @@
 - **Action:** Implemented all 11 required pages: `Dashboard`, `ProjectUpload`, `CodeAnalysis`, `VulnerabilityScanner`, `VulnerabilityDetails`, `AiRepairStudio`, `CodeDiffReview`, `VerificationCenter`, `SecurityReports`, `ProjectHistory`, `SettingsPage`.
 - **Action:** Connected all routes via `react-router-dom` in `App.tsx`.
 - **Action:** Successfully installed 259 packages and verified clean production build (`npm run build`, `TEST-FE-02`) with 0 errors.
+- **Result:** Phase 3 approved and committed (`50f2bf6`).
+
+### Phase 4: Source Code & Firmware Ingestion
+- **Action:** Built `backend/app/services/ingestion/extractor.py` implementing strict Zip-Slip path-traversal detection (`..` rejection, canonical path verification) and decompression bomb protection (100MB threshold, 1,000 file ceiling).
+- **Action:** Built `backend/app/services/ingestion/workspace.py` providing isolated shadow workspaces (`data/workspaces/{project_id}/shadow`), read-only original preservation (`data/uploads/{project_id}/original`), and C/C++ source code indexer.
+- **Action:** Implemented API endpoints in `backend/app/api/v1/projects.py` (`POST /projects/upload`, `GET /projects`, `GET /projects/{project_id}`, `GET /projects/{project_id}/files`, `GET /projects/{project_id}/file-content`).
+- **Action:** Created realistic IoT smart meter vulnerable C fixture in `fixtures/iot_firmware/sample_smart_meter.c` (CWE-120 buffer overflow and CWE-476 NULL pointer).
+- **Action:** Wired up real file upload drag-and-drop UI with progress feedback in `frontend/src/pages/ProjectUpload.tsx`.
+- **Action:** Added Pytest test suite in `backend/tests/test_ingestion.py` covering safe extraction, Zip-Slip rejection, workspace syncing, and API multipart ingestion. All 6 tests in suite passed.
+
 
 
 

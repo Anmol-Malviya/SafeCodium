@@ -14,7 +14,7 @@
 | **Phase 1** | Project Initialization & Governance | **COMPLETED** | 2026-10-30 |
 | **Phase 2** | Backend Architecture & Core Foundation | **COMPLETED** | 2026-10-30 |
 | **Phase 3** | Frontend Foundation & Cyber Dashboard UI | **COMPLETED** | 2026-10-30 |
-| **Phase 4** | Source Code & Firmware Ingestion | PENDING | — |
+| **Phase 4** | Source Code & Firmware Ingestion | **COMPLETED** | 2026-10-30 |
 | **Phase 5** | Static Vulnerability Detection Engine | PENDING | — |
 | **Phase 6** | CWE Classification & Finding Normalization | PENDING | — |
 | **Phase 7** | IoT Firmware Context Intelligence | PENDING | — |

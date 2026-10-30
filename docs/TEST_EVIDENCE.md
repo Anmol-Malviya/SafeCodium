@@ -15,4 +15,8 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-BE-02` | `python backend/tests/test_live_server.py` | Verify live HTTP server boot, GPU telemetry, and DB connection | 0 | PASSED (HTTP 200, GPU RTX 3050 detected, DB connected) |
 | `TEST-FE-01` | `npm install` | Install React 19, Vite, Tailwind CSS, Monaco, Lucide dependencies | 0 | PASSED (259 packages added, zero audit vulnerabilities) |
 | `TEST-FE-02` | `npm run build` | TypeScript compile (`tsc -b`) and Vite production bundle | 0 | PASSED (2,126 modules transformed, dist built in 6.41s) |
+| `TEST-ING-01` | `pytest backend/tests/test_ingestion.py::test_safe_zip_extraction` | Verify safe extraction of valid C firmware archive | 0 | PASSED (clean extraction into designated sandbox) |
+| `TEST-ING-02` | `pytest backend/tests/test_ingestion.py::test_zip_slip_rejection` | Verify Zip-Slip path-traversal attack is blocked | 0 | PASSED (IngestionSecurityError thrown on `../` entry) |
+| `TEST-ING-03` | `pytest backend/tests/test_ingestion.py::test_workspace_manager_sync_and_indexing` | Verify shadow copy sync and C/C++ file discovery | 0 | PASSED (read-only original copied to shadow, 2 C files indexed) |
+| `TEST-ING-04` | `pytest backend/tests/test_ingestion.py::test_upload_api_single_c_file` | Verify HTTP multipart upload, DB persistence, and listing | 0 | PASSED (HTTP 201 Created, project registered, files listed) |
 

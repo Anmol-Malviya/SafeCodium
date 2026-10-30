@@ -14,12 +14,12 @@ export default {
           surface: '#131b2e',
           card: '#1a233a',
           border: '#243252',
-          muted: '#62729a',
+          muted: '#1e3c86ff',
           text: '#e2e8f0',
           accent: '#06b6d4',      // cyan
           emerald: '#10b981',     // safe/verified
           amber: '#f59e0b',       // warning/inconclusive
-          rose: '#f43f5e',        // critical/rejected
+          rose: '#970b22ff',        // critical/rejected
           purple: '#8b5cf6',      // AI synthesis
         }
       },
