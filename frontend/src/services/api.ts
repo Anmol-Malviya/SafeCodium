@@ -121,8 +121,24 @@ export const getScanDetails = async (scanId: string): Promise<ScanDetailData> =>
   return response.data.data;
 };
 
+export interface EnrichedVulnerabilityData extends VulnerabilityData {
+  cwe_name: string;
+  cvss_base_score: number;
+  cvss_vector: string;
+  confidence: string;
+  confidence_score: number;
+  explanation: string;
+  iot_impact: string;
+  mitigation_strategies: string[];
+}
+
 export const getProjectVulnerabilities = async (projectId: string): Promise<VulnerabilityData[]> => {
   const response = await api.get<ApiResponse<VulnerabilityData[]>>(`/vulnerabilities/project/${projectId}`);
+  return response.data.data;
+};
+
+export const getVulnerabilityDetails = async (vulnId: string): Promise<EnrichedVulnerabilityData> => {
+  const response = await api.get<ApiResponse<EnrichedVulnerabilityData>>(`/vulnerabilities/${vulnId}`);
   return response.data.data;
 };
 

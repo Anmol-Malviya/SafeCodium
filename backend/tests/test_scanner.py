@@ -75,3 +75,4 @@ async def test_api_scan_workflow():
         vuln_list_res = await client.get(f"/api/v1/vulnerabilities/project/{project_id}")
         assert vuln_list_res.status_code == 200
         assert len(vuln_list_res.json()["data"]) == len(vulns)
+

@@ -39,6 +39,31 @@ class VulnerabilityResponse(BaseModel):
         from_attributes = True
 
 
+class EnrichedVulnerabilityResponse(BaseModel):
+    id: str
+    project_id: str
+    scan_id: Optional[str] = None
+    cwe_id: str
+    cwe_name: str
+    title: str
+    severity: str
+    cvss_base_score: float
+    cvss_vector: str
+    confidence: str
+    confidence_score: float
+    file_path: str
+    line_start: int
+    line_end: int
+    function_name: Optional[str] = None
+    vulnerable_code: str
+    scanner_source: str
+    explanation: str
+    iot_impact: str
+    mitigation_strategies: List[str]
+    status: str
+
+
 class ScanDetailResponse(BaseModel):
     scan: ScanResponse
     vulnerabilities: List[VulnerabilityResponse]
+

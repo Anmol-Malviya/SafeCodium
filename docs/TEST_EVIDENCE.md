@@ -21,4 +21,7 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-ING-04` | `pytest backend/tests/test_ingestion.py::test_upload_api_single_c_file` | Verify HTTP multipart upload, DB persistence, and listing | 0 | PASSED (HTTP 201 Created, project registered, files listed) |
 | `TEST-SCAN-01` | `pytest backend/tests/test_scanner.py::test_ast_scanner_on_smart_meter_fixture` | Verify AST scanner detects CWE-120 and CWE-476 on fixture | 0 | PASSED (accurate line numbers, function scopes, and snippets) |
 | `TEST-SCAN-02` | `pytest backend/tests/test_scanner.py::test_api_scan_workflow` | Verify HTTP scan trigger (`/scans/run`) and DB persistence | 0 | PASSED (HTTP 201 Created, vulnerabilities indexed, retrieved) |
+| `TEST-NORM-01` | `pytest backend/tests/test_cwe_normalizer.py::test_cwe_catalog_definitions` | Verify CWE catalog metadata (CVSS scores, vectors, mitigations) | 0 | PASSED (CWE-120 9.8, CWE-476 7.5, mitigations validated) |
+| `TEST-NORM-02` | `pytest backend/tests/test_cwe_normalizer.py::test_finding_normalizer_enrichment` | Verify finding normalization, confidence score & IoT impact | 0 | PASSED (HIGH confidence 0.98 assigned, full metadata mapped) |
+| `TEST-NORM-03` | `pytest backend/tests/test_cwe_normalizer.py::test_enriched_vulnerability_api` | Verify GET `/vulnerabilities/{id}` returns CVSS & taxonomy | 0 | PASSED (HTTP 200, enriched payload verified) |
 

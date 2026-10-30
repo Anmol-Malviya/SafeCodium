@@ -10,8 +10,14 @@ from sqlalchemy.orm import selectinload
 from backend.app.db.session import get_db
 from backend.app.models.project import Project, Scan, Vulnerability
 from backend.app.schemas.common import ApiResponse
-from backend.app.schemas.scan import ScanDetailResponse, ScanResponse, VulnerabilityResponse
+from backend.app.schemas.scan import (
+    ScanDetailResponse,
+    ScanResponse,
+    VulnerabilityResponse,
+    EnrichedVulnerabilityResponse,
+)
 from backend.app.services.analysis.engine import AnalysisEngine
+from backend.app.services.analysis.normalizer import FindingNormalizer
 
 router = APIRouter(tags=["Vulnerability Scanning"])
 
@@ -86,30 +92,32 @@ async def list_project_scans(project_id: str, db: AsyncSession = Depends(get_db)
     )
 
 
-@router.get("/vulnerabilities/{vuln_id}", response_model=ApiResponse[VulnerabilityResponse])
+@router.get("/vulnerabilities/{vuln_id}", response_model=ApiResponse[EnrichedVulnerabilityResponse])
 async def get_vulnerability(vuln_id: str, db: AsyncSession = Depends(get_db)):
-    """Retrieves single vulnerability details."""
+    """Retrieves single normalized and enriched vulnerability details."""
     result = await db.execute(select(Vulnerability).where(Vulnerability.id == vuln_id))
     vuln = result.scalar_one_or_none()
     if not vuln:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vulnerability not found")
 
+    enriched = FindingNormalizer.normalize(vuln)
     return ApiResponse(
         success=True,
-        message="Vulnerability details retrieved",
-        data=VulnerabilityResponse.model_validate(vuln),
+        message="Vulnerability details retrieved with CWE taxonomy and CVSS metrics",
+        data=EnrichedVulnerabilityResponse.model_validate(enriched.model_dump()),
     )
 
 
-@router.get("/vulnerabilities/project/{project_id}", response_model=ApiResponse[List[VulnerabilityResponse]])
+@router.get("/vulnerabilities/project/{project_id}", response_model=ApiResponse[List[EnrichedVulnerabilityResponse]])
 async def list_project_vulnerabilities(project_id: str, db: AsyncSession = Depends(get_db)):
-    """Lists all detected vulnerabilities for a project."""
+    """Lists all normalized and enriched vulnerabilities for a project."""
     result = await db.execute(
         select(Vulnerability).where(Vulnerability.project_id == project_id).order_by(Vulnerability.line_start.asc())
     )
     vulns = result.scalars().all()
+    enriched_list = [FindingNormalizer.normalize(v) for v in vulns]
     return ApiResponse(
         success=True,
-        message=f"Retrieved {len(vulns)} vulnerabilities",
-        data=[VulnerabilityResponse.model_validate(v) for v in vulns],
+        message=f"Retrieved {len(vulns)} normalized vulnerabilities",
+        data=[EnrichedVulnerabilityResponse.model_validate(e.model_dump()) for e in enriched_list],
     )

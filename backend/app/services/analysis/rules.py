@@ -75,3 +75,4 @@ STATIC_PATTERNS = [
         "explanation": "Pointer is freed; any subsequent dereference without reassignment triggers Use-After-Free.",
     },
 ]
+

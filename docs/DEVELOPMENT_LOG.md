@@ -54,6 +54,15 @@
 - **Action:** Added Pydantic schemas in `backend/app/schemas/scan.py` and API endpoints in `backend/app/api/v1/scans.py` (`POST /scans/run`, `GET /scans/{scan_id}`, `GET /scans/project/{project_id}`, `GET /vulnerabilities/{vuln_id}`, `GET /vulnerabilities/project/{project_id}`).
 - **Action:** Connected frontend `VulnerabilityScanner.tsx` with dynamic project selector, live scan execution, and findings table.
 - **Action:** Tested static scanner on `fixtures/iot_firmware/sample_smart_meter.c` (`TEST-SCAN-01`, `TEST-SCAN-02`); full suite of 8 backend tests passing 100%. Verified frontend build with 0 errors.
+- **Result:** Phase 5 approved and committed (`b2fcb4f`).
+
+### Phase 6: CWE Classification & Finding Normalization
+- **Action:** Authored `backend/app/services/analysis/cwe_catalog.py` containing complete taxonomy definitions, CVSS v3.1 base score vectors, IoT embedded firmware impacts, and mitigation strategies for CWE-120, CWE-787, CWE-476, and CWE-416.
+- **Action:** Built `backend/app/services/analysis/normalizer.py` calculating dynamic confidence scores (e.g., 0.98 for definite dangerous memory copies, 0.92 for AST-verified parameter dereference) and enriching findings with CVSS base scores.
+- **Action:** Added `EnrichedVulnerabilityResponse` schema and updated `/api/v1/vulnerabilities/{vuln_id}` and `/api/v1/vulnerabilities/project/{project_id}` endpoints.
+- **Action:** Upgraded `frontend/src/pages/VulnerabilityDetails.tsx` with full CWE taxonomy view, CVSS v3.1 score pill, IoT impact analysis, code line preview, and mitigation checklist.
+- **Action:** Added Pytest suite `backend/tests/test_cwe_normalizer.py` (`TEST-NORM-01`, `TEST-NORM-02`, `TEST-NORM-03`). All 11 tests across the entire backend suite passing 100%.
+
 
 
 

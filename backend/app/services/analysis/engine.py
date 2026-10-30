@@ -123,3 +123,4 @@ class AnalysisEngine:
 
         logger.info(f"Scan {scan.id} finished with {scan.findings_count} findings.")
         return scan
+
