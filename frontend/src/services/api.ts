@@ -256,6 +256,12 @@ export const generateAiReasoning = async (request: AiReasoningRequestData): Prom
   return response.data.data;
 };
 
+export const analyzeVulnerabilityRootCause = async (vulnId: string, provider?: string): Promise<AiReasoningResponseData> => {
+  const url = provider ? `/reasoning/analyze/${vulnId}?provider=${provider}` : `/reasoning/analyze/${vulnId}`;
+  const response = await api.post<ApiResponse<AiReasoningResponseData>>(url);
+  return response.data.data;
+};
+
 export const synthesizeAiPatch = async (request: AiPatchRequestData): Promise<AiPatchResponseData> => {
   const response = await api.post<ApiResponse<AiPatchResponseData>>('/ai/patch', request);
   return response.data.data;

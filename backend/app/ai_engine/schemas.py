@@ -57,3 +57,4 @@ class ProviderStatus(BaseModel):
     is_available: bool
     is_primary: bool
     status_message: str
+

@@ -59,3 +59,4 @@ async def synthesize_patch(request: AiPatchRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI patch synthesis failed: {str(e)}",
         )
+

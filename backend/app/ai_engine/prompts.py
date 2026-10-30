@@ -84,3 +84,4 @@ def build_patch_user_prompt(
 Generate a minimal, defensive patch that fixes the flaw completely.
 Return strictly a JSON object.
 """
+

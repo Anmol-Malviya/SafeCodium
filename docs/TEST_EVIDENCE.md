@@ -30,4 +30,6 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-AI-02` | `pytest backend/tests/test_ai_router.py::test_ai_reasoning_generation` | Generate structured root-cause analysis and hardware impact | 0 | PASSED (valid Pydantic AiReasoningResponse returned) |
 | `TEST-AI-03` | `pytest backend/tests/test_ai_router.py::test_ai_patch_synthesis_diff_format` | Synthesize unified diff defensive patch | 0 | PASSED (valid unified diff format `--- a/ +++ b/` produced) |
 | `TEST-AI-04` | `pytest backend/tests/test_ai_router.py::test_ai_api_endpoints` | Verify HTTP API routes `/ai/providers`, `/ai/reasoning`, `/ai/patch` | 0 | PASSED (HTTP 200 on all AI router endpoints) |
+| `TEST-RSN-01` | `pytest backend/tests/test_reasoning_service.py::test_reasoning_service_direct` | Synthesize root-cause reasoning injecting IoT context bundle | 0 | PASSED (root-cause, attack scenario & hardware impact generated) |
+| `TEST-RSN-02` | `pytest backend/tests/test_reasoning_service.py::test_api_reasoning_endpoint` | Verify HTTP route `/reasoning/analyze/{vuln_id}` | 0 | PASSED (HTTP 200 with structured AiReasoningResponse payload) |
 

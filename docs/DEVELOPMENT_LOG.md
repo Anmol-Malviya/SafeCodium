@@ -81,6 +81,14 @@
 - **Action:** Added API endpoints in `backend/app/api/v1/ai.py` (`GET /api/v1/ai/providers`, `POST /api/v1/ai/reasoning`, `POST /api/v1/ai/patch`).
 - **Action:** Connected frontend `SettingsPage.tsx` with dynamic AI provider probe telemetry.
 - **Action:** Authored Pytest test suite `backend/tests/test_ai_router.py` (`TEST-AI-01`, `TEST-AI-02`, `TEST-AI-03`, `TEST-AI-04`). All 17 backend tests passing 100%. Verified frontend build with 0 errors.
+- **Result:** Phase 8 approved and committed (`cccf194`).
+
+### Phase 9: AI Vulnerability Reasoning & Root-Cause Analysis
+- **Action:** Implemented `backend/app/services/reasoning/service.py` bridging IoT context bundles with the multi-provider AI router to generate grounded vulnerability analysis.
+- **Action:** Implemented REST endpoint `POST /api/v1/reasoning/analyze/{vuln_id}` in `backend/app/api/v1/reasoning.py` returning structured root-cause explanations, attack reproduction sequences, and hardware/RTOS safety impacts.
+- **Action:** Upgraded `frontend/src/pages/VulnerabilityDetails.tsx` with dedicated AI Root-Cause Reasoning card featuring provider selection (Gemini, OpenAI, Ollama), live analysis trigger, and clear visual separation of deterministic AST proof vs. AI hypotheses.
+- **Action:** Added Pytest suite `backend/tests/test_reasoning_service.py` (`TEST-RSN-01`, `TEST-RSN-02`). Full backend suite of 19 tests passing 100%. Verified clean frontend production build (`npm run build`).
+
 
 
 

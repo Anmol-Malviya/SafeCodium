@@ -66,3 +66,4 @@ class AiRouter:
 
 
 ai_router = AiRouter()
+

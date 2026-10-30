@@ -31,3 +31,4 @@ class BaseAiProvider(ABC):
     async def generate_patch(self, request: AiPatchRequest) -> AiPatchResponse:
         """Synthesizes a minimal unified diff defensive repair patch."""
         pass
+

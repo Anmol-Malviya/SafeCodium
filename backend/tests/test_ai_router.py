@@ -96,3 +96,4 @@ async def test_ai_api_endpoints():
         )
         assert patch_res.status_code == 200
         assert "unified_diff" in patch_res.json()["data"]
+

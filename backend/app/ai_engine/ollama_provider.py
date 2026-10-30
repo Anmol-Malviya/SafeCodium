@@ -82,3 +82,4 @@ class OllamaProvider(BaseAiProvider):
             defensive_checks_added=["Bounds guard"],
             side_effect_assessment="Minimal footprint.",
         )
+
