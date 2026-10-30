@@ -138,3 +138,4 @@ async def test_api_regression_endpoint(tmp_path):
         assert stat_resp.status_code == 200
         stat_data = stat_resp.json()["data"]
         assert stat_data["test_suite_passed"] is True
+

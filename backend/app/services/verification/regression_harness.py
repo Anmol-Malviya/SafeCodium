@@ -248,3 +248,4 @@ class RegressionTestHarness:
                 regression_detected=False,
                 vulnerability_neutralized=post_passed,
             )
+

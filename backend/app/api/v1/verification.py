@@ -14,12 +14,15 @@ from backend.app.schemas.verification import (
     DualCompileResponse,
     DualSanitizerResponse,
     RegressionSuiteResponse,
+    ResourceProfileResponse,
     SanitizerRunResponse,
+    SectionMetricsResponse,
     TestCaseResponse,
     VerificationStatusResponse,
 )
 from backend.app.services.verification.compiler_harness import DualCompilerHarness
 from backend.app.services.verification.regression_harness import RegressionTestHarness
+from backend.app.services.verification.resource_profiler import ResourceProfiler
 from backend.app.services.verification.sanitizer_harness import SanitizerVerificationHarness
 
 router = APIRouter(prefix="/verification", tags=["Dual Compilation & Verification"])
@@ -303,6 +306,110 @@ async def trigger_regression_suite(patch_id: str, db: AsyncSession = Depends(get
     )
 
 
+@router.post("/resource/{patch_id}", response_model=ApiResponse[ResourceProfileResponse])
+async def trigger_resource_profiling(patch_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Executes binary footprint analysis (Flash vs RAM delta).
+    If Compiler (exit 0), Sanitizers (0 crashes), Regression (100%), and Resource (<256B) pass,
+    promotes Verification.final_status to 'VERIFIED'.
+    """
+    result = await db.execute(select(Patch).where(Patch.id == patch_id))
+    patch = result.scalar_one_or_none()
+    if not patch:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patch not found")
+
+    vuln_res = await db.execute(select(Vulnerability).where(Vulnerability.id == patch.vulnerability_id))
+    vuln = vuln_res.scalar_one_or_none()
+    if not vuln:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vulnerability not found")
+
+    proj_res = await db.execute(select(Project).where(Project.id == vuln.project_id))
+    project = proj_res.scalar_one_or_none()
+    if not project or not project.original_path or not project.shadow_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project workspaces not properly configured")
+
+    orig_path = Path(project.original_path) / vuln.file_path
+    if not orig_path.exists():
+        candidates = list(Path(project.original_path).glob(f"**/{Path(vuln.file_path).name}"))
+        if candidates:
+            orig_path = candidates[0]
+
+    shadow_path = Path(project.shadow_path) / vuln.file_path
+    if not shadow_path.exists():
+        candidates = list(Path(project.shadow_path).glob(f"**/{Path(vuln.file_path).name}"))
+        if candidates:
+            shadow_path = candidates[0]
+
+    prof_res = ResourceProfiler.compare_resource_profile(
+        patch_id=patch.id,
+        original_source_path=str(orig_path),
+        shadow_source_path=str(shadow_path),
+    )
+
+    ver_res = await db.execute(select(Verification).where(Verification.patch_id == patch.id))
+    verification = ver_res.scalar_one_or_none()
+    if not verification:
+        verification = Verification(
+            patch_id=patch.id,
+            binary_size_delta_bytes=prof_res.flash_delta_bytes,
+            final_status="INCONCLUSIVE",
+        )
+        db.add(verification)
+    else:
+        verification.binary_size_delta_bytes = prof_res.flash_delta_bytes
+
+    # Promotion check according to AGENTS.md Rule 6:
+    # 1. Compiler exit == 0
+    # 2. ASan exit == 0
+    # 3. Test suite passed == True
+    # 4. Resource delta safe == True
+    compiler_ok = (verification.post_patch_compiler_exit == 0)
+    asan_ok = (verification.asan_exit_code == 0)
+    tests_ok = (verification.test_suite_passed is True)
+    resource_ok = prof_res.is_resource_safe
+
+    if compiler_ok and asan_ok and tests_ok and resource_ok:
+        verification.final_status = "VERIFIED"
+        patch.status = "VERIFIED"
+        vuln.status = "verified"
+    elif not compiler_ok or not asan_ok or not tests_ok or not resource_ok:
+        verification.final_status = "REJECTED"
+        patch.status = "REJECTED"
+
+    await db.commit()
+    await db.refresh(verification)
+
+    return ApiResponse(
+        success=prof_res.is_resource_safe,
+        message=prof_res.summary,
+        data=ResourceProfileResponse(
+            patch_id=prof_res.patch_id,
+            pre_patch_metrics=SectionMetricsResponse(
+                text_bytes=prof_res.pre_patch_metrics.text_bytes,
+                data_bytes=prof_res.pre_patch_metrics.data_bytes,
+                bss_bytes=prof_res.pre_patch_metrics.bss_bytes,
+                total_flash_bytes=prof_res.pre_patch_metrics.total_flash_bytes,
+                total_ram_bytes=prof_res.pre_patch_metrics.total_ram_bytes,
+            ),
+            post_patch_metrics=SectionMetricsResponse(
+                text_bytes=prof_res.post_patch_metrics.text_bytes,
+                data_bytes=prof_res.post_patch_metrics.data_bytes,
+                bss_bytes=prof_res.post_patch_metrics.bss_bytes,
+                total_flash_bytes=prof_res.post_patch_metrics.total_flash_bytes,
+                total_ram_bytes=prof_res.post_patch_metrics.total_ram_bytes,
+            ),
+            flash_delta_bytes=prof_res.flash_delta_bytes,
+            ram_delta_bytes=prof_res.ram_delta_bytes,
+            flash_delta_percentage=prof_res.flash_delta_percentage,
+            ram_delta_percentage=prof_res.ram_delta_percentage,
+            is_resource_safe=prof_res.is_resource_safe,
+            verdict=prof_res.verdict,
+            summary=prof_res.summary,
+            promoted_final_status=verification.final_status,
+        ),
+    )
+
+
 @router.get("/status/{patch_id}", response_model=ApiResponse[VerificationStatusResponse])
 async def get_verification_status(patch_id: str, db: AsyncSession = Depends(get_db)):
     """Retrieves full verification telemetry for a patch."""
@@ -316,3 +423,4 @@ async def get_verification_status(patch_id: str, db: AsyncSession = Depends(get_
         message="Verification record retrieved",
         data=VerificationStatusResponse.model_validate(verification),
     )
+

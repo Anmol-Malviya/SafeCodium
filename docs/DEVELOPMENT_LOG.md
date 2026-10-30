@@ -133,7 +133,16 @@
 - **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` (`TestCaseResponse`, `RegressionSuiteResponse`) and REST endpoint `POST /api/v1/verification/regression/{patch_id}` in `backend/app/api/v1/verification.py`.
 - **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with dedicated "3. Run Regression Matrix" action and comprehensive test vector results table.
 - **Action:** Authored Pytest test suite `backend/tests/test_regression_harness.py` (`TEST-REG-01`, `TEST-REG-02`). All 32 backend tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 14 completed and verified.
+- **Result:** Phase 14 completed and verified (`f022e01`).
+
+### Phase 15: Firmware Resource & Binary Footprint Comparison
+- **Action:** Created `backend/app/services/verification/resource_profiler.py` modeling Flash (ROM / `.text`) and static RAM (`.data` + `.bss`) binary sections.
+- **Action:** Implemented automated resource boundary check (< 256 bytes Flash overhead, zero dynamic heap expansion).
+- **Action:** Added schema `ResourceProfileResponse` in `backend/app/schemas/verification.py` and endpoint `POST /api/v1/verification/resource/{patch_id}` in `backend/app/api/v1/verification.py`.
+- **Action:** Enforced Rule 6 ground-truth verification promotion: When Compiler=0, ASan=0, Regression=100%, and Resource Profiling pass, promotes `Verification.final_status` and `Patch.status` to `VERIFIED`.
+- **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with "4. Profile & Finalize" trigger, Flash/RAM comparison cards, and verified badge banner.
+- **Action:** Authored Pytest test suite `backend/tests/test_resource_profiler.py` (`TEST-RES-01`, `TEST-RES-02`). All 34 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 15 completed and verified.
 
 
 

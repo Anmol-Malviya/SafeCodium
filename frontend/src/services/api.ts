@@ -453,6 +453,34 @@ export const runRegressionSuite = async (patchId: string): Promise<RegressionSui
   return response.data.data;
 };
 
+export interface SectionMetricsData {
+  text_bytes: number;
+  data_bytes: number;
+  bss_bytes: number;
+  total_flash_bytes: number;
+  total_ram_bytes: number;
+}
+
+export interface ResourceProfileData {
+  patch_id: string;
+  pre_patch_metrics: SectionMetricsData;
+  post_patch_metrics: SectionMetricsData;
+  flash_delta_bytes: number;
+  ram_delta_bytes: number;
+  flash_delta_percentage: number;
+  ram_delta_percentage: number;
+  is_resource_safe: boolean;
+  verdict: string;
+  summary: string;
+  promoted_final_status: string;
+}
+
+export const runResourceProfiling = async (patchId: string): Promise<ResourceProfileData> => {
+  const response = await api.post<ApiResponse<ResourceProfileData>>(`/verification/resource/${patchId}`);
+  return response.data.data;
+};
+
+
 
 
 

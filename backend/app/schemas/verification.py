@@ -74,6 +74,28 @@ class RegressionSuiteResponse(BaseModel):
     summary: str
 
 
+class SectionMetricsResponse(BaseModel):
+    text_bytes: int
+    data_bytes: int
+    bss_bytes: int
+    total_flash_bytes: int
+    total_ram_bytes: int
+
+
+class ResourceProfileResponse(BaseModel):
+    patch_id: str
+    pre_patch_metrics: SectionMetricsResponse
+    post_patch_metrics: SectionMetricsResponse
+    flash_delta_bytes: int
+    ram_delta_bytes: int
+    flash_delta_percentage: float
+    ram_delta_percentage: float
+    is_resource_safe: bool
+    verdict: str
+    summary: str
+    promoted_final_status: str
+
+
 class VerificationStatusResponse(BaseModel):
     id: str
     patch_id: str
@@ -92,3 +114,4 @@ class VerificationStatusResponse(BaseModel):
 
     class Config:
         from_attributes = True
+

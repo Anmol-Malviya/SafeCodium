@@ -50,6 +50,10 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-REG-01` | `pytest backend/tests/test_regression_harness.py::test_regression_suite_direct` | Direct 4-vector regression suite execution on C firmware | 0 | PASSED (4/4 tests passed, benign preserved, exploit neutralized) |
 | `TEST-REG-02` | `pytest backend/tests/test_regression_harness.py::test_api_regression_endpoint` | Verify HTTP `/api/v1/verification/regression/{patch_id}` | 0 | PASSED (HTTP 200, status VERIFIED, DB test suite passed=true) |
 | `TEST-FE-14` | `npm run build` | Verify frontend build with 4-Tier Regression Matrix UI | 0 | PASSED (2,138 modules transformed, dist built in 8.79s) |
+| `TEST-RES-01` | `pytest backend/tests/test_resource_profiler.py::test_resource_profiler_direct` | Direct binary section analysis (Flash & RAM delta) | 0 | PASSED (Flash delta +56B within 256B limit, 0 RAM growth, safe=True) |
+| `TEST-RES-02` | `pytest backend/tests/test_resource_profiler.py::test_api_resource_endpoint_and_verification_promotion` | Verify HTTP `/verification/resource/{id}` and VERIFIED promotion | 0 | PASSED (status promoted to VERIFIED, DB verification record updated) |
+| `TEST-FE-15` | `npm run build` | Verify frontend build with Resource Profiling UI & Promotion Badge | 0 | PASSED (2,138 modules transformed, dist built in 8.62s) |
+
 
 
 
