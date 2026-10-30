@@ -347,4 +347,54 @@ export const applyPatch = async (patchId: string, dryRun: boolean = false): Prom
   return response.data.data;
 };
 
+export interface CompileResultData {
+  compiler_used: string;
+  target_file: string;
+  exit_code: number;
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  warnings_count: number;
+  errors_count: number;
+  diagnostics: string[];
+}
+
+export interface DualCompileData {
+  patch_id: string;
+  compiler_name: string;
+  pre_patch: CompileResultData;
+  post_patch: CompileResultData;
+  compilation_passed: boolean;
+  status: string;
+  delta_summary: string;
+}
+
+export interface VerificationStatusData {
+  id: string;
+  patch_id: string;
+  pre_patch_compiler_exit: number;
+  post_patch_compiler_exit: number;
+  asan_exit_code: number;
+  asan_output: string | null;
+  ubsan_exit_code: number;
+  ubsan_output: string | null;
+  test_suite_passed: boolean;
+  test_results_json: Record<string, any> | null;
+  binary_size_delta_bytes: number;
+  final_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const runDualCompilation = async (patchId: string): Promise<DualCompileData> => {
+  const response = await api.post<ApiResponse<DualCompileData>>(`/verification/compile/${patchId}`);
+  return response.data.data;
+};
+
+export const getVerificationStatus = async (patchId: string): Promise<VerificationStatusData> => {
+  const response = await api.get<ApiResponse<VerificationStatusData>>(`/verification/status/${patchId}`);
+  return response.data.data;
+};
+
+
 

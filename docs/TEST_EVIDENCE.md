@@ -39,6 +39,11 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-REV-02` | `pytest backend/tests/test_patch_review.py::test_independent_patch_critique` | Verify independent critique heuristics (C syntax, zero-malloc, bounds) | 0 | PASSED (critique score >= 0.8, APPROVED verdict, zero heap allocation verified) |
 | `TEST-REV-03` | `pytest backend/tests/test_patch_review.py::test_api_patch_critique_and_apply` | Verify HTTP `/patches/{id}/critique` and `/patches/{id}/apply` | 0 | PASSED (dry-run preserves file, real apply modifies shadow file cleanly) |
 | `TEST-FE-11` | `npm run build` | Verify frontend compilation with Monaco Diff Editor and critique panel | 0 | PASSED (2,138 modules transformed, dist built in 8.78s) |
+| `TEST-CMP-01` | `pytest backend/tests/test_compiler_harness.py::test_compiler_harness_single_file_clean` | Verify compiler harness executes clean C source code (exit 0) | 0 | PASSED (clean C99 compilation, 0 errors, 0 warnings) |
+| `TEST-CMP-02` | `pytest backend/tests/test_compiler_harness.py::test_compiler_harness_detects_unsafe_and_syntax_error` | Verify detection of deprecated unsafe functions and syntax errors | 0 | PASSED (deprecated warning detected, unbalanced syntax returns exit 1) |
+| `TEST-CMP-03` | `pytest backend/tests/test_compiler_harness.py::test_api_dual_compilation_endpoint` | Verify HTTP endpoint `/api/v1/verification/compile/{patch_id}` | 0 | PASSED (pre-patch warnings recorded, post-patch passes exit 0, DB verified) |
+| `TEST-FE-12` | `npm run build` | Verify frontend build with Dual Compilation Center UI | 0 | PASSED (2,138 modules transformed, dist built in 10.57s) |
+
 
 
 

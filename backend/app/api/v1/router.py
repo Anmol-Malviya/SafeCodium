@@ -8,6 +8,7 @@ from backend.app.api.v1.iot_context import router as iot_context_router
 from backend.app.api.v1.ai import router as ai_router
 from backend.app.api.v1.reasoning import router as reasoning_router
 from backend.app.api.v1.patches import router as patches_router
+from backend.app.api.v1.verification import router as verification_router
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(health_router, tags=["Health & Diagnostics"])
@@ -17,4 +18,5 @@ api_router.include_router(iot_context_router, tags=["IoT Context Intelligence"])
 api_router.include_router(ai_router, tags=["AI Engine & Providers"])
 api_router.include_router(reasoning_router, tags=["AI Root-Cause Reasoning"])
 api_router.include_router(patches_router, tags=["Automated Patch Generation"])
+api_router.include_router(verification_router, tags=["Dual Compilation & Verification"])
 

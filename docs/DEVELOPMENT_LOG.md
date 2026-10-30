@@ -104,7 +104,16 @@
 - **Action:** Added API endpoints in `backend/app/api/v1/patches.py` (`POST /api/v1/patches/{patch_id}/critique` and `POST /api/v1/patches/{patch_id}/apply` with dry-run support).
 - **Action:** Upgraded `frontend/src/pages/CodeDiffReview.tsx` with full Monaco Diff Editor (`@monaco-editor/react`), live independent critique verdict, hunk application telemetry, and controlled shadow write action.
 - **Action:** Authored Pytest test suite `backend/tests/test_patch_review.py` (`TEST-REV-01`, `TEST-REV-02`, `TEST-REV-03`). All 24 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 11 completed and verified.
+- **Result:** Phase 11 completed and verified (`9a00709`).
+
+### Phase 12: Dual Compilation Verification Engine
+- **Action:** Created `backend/app/services/verification/compiler_harness.py` implementing dual-compilation harness comparing pre-patch (original) vs post-patch (shadow) C/C++ source code.
+- **Action:** Integrated host toolchain probe (`gcc`, `clang`, `cl`) with fallback to deterministic IoT Cross-Compiler Simulation Harness (`xtensa-esp32-elf-gcc`, C99 `-Wall -Werror`).
+- **Action:** Implemented diagnostic analyzer extracting error/warning counts, unbuffered memory copies, syntax balance issues, and missing terminators.
+- **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` and API endpoints in `backend/app/api/v1/verification.py` (`POST /api/v1/verification/compile/{patch_id}` and `GET /api/v1/verification/status/{patch_id}`).
+- **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with dynamic project and patch selection, dual compilation trigger, side-by-side pre-patch vs post-patch compiler stdout/stderr diagnostic terminals, and ground-truth rule reminder.
+- **Action:** Authored Pytest test suite `backend/tests/test_compiler_harness.py` (`TEST-CMP-01`, `TEST-CMP-02`, `TEST-CMP-03`). All 27 tests across the entire backend suite passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 12 completed and verified.
 
 
 
