@@ -75,3 +75,4 @@ class WorkspaceManager:
                     except Exception:
                         pass
         return indexed_files
+

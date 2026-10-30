@@ -105,3 +105,4 @@ async def test_upload_api_single_c_file():
         files_res = await client.get(f"/api/v1/projects/{project_id}/files")
         assert files_res.status_code == 200
         assert len(files_res.json()["data"]) == 1
+

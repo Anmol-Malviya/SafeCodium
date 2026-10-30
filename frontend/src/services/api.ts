@@ -75,8 +75,54 @@ export const listProjects = async (): Promise<ProjectData[]> => {
   return response.data.data;
 };
 
-export const getProjectFiles = async (projectId: string): Promise<SourceFileData[]> => {
-  const response = await api.get<ApiResponse<SourceFileData[]>>(`/projects/${projectId}/files`);
+export interface VulnerabilityData {
+  id: string;
+  project_id: string;
+  scan_id: string | null;
+  cwe_id: string;
+  title: string;
+  severity: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  function_name: string | null;
+  vulnerable_code: string;
+  scanner_source: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScanData {
+  id: string;
+  project_id: string;
+  scanner_type: string;
+  status: string;
+  findings_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScanDetailData {
+  scan: ScanData;
+  vulnerabilities: VulnerabilityData[];
+}
+
+export const triggerScan = async (projectId: string, scannerType: string = 'composite'): Promise<ScanDetailData> => {
+  const response = await api.post<ApiResponse<ScanDetailData>>('/scans/run', {
+    project_id: projectId,
+    scanner_type: scannerType,
+  });
+  return response.data.data;
+};
+
+export const getScanDetails = async (scanId: string): Promise<ScanDetailData> => {
+  const response = await api.get<ApiResponse<ScanDetailData>>(`/scans/${scanId}`);
+  return response.data.data;
+};
+
+export const getProjectVulnerabilities = async (projectId: string): Promise<VulnerabilityData[]> => {
+  const response = await api.get<ApiResponse<VulnerabilityData[]>>(`/vulnerabilities/project/${projectId}`);
   return response.data.data;
 };
 

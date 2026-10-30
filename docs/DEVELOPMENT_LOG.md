@@ -45,6 +45,16 @@
 - **Action:** Created realistic IoT smart meter vulnerable C fixture in `fixtures/iot_firmware/sample_smart_meter.c` (CWE-120 buffer overflow and CWE-476 NULL pointer).
 - **Action:** Wired up real file upload drag-and-drop UI with progress feedback in `frontend/src/pages/ProjectUpload.tsx`.
 - **Action:** Added Pytest test suite in `backend/tests/test_ingestion.py` covering safe extraction, Zip-Slip rejection, workspace syncing, and API multipart ingestion. All 6 tests in suite passed.
+- **Result:** Phase 4 approved and committed (`84bd491`).
+
+### Phase 5: Static Vulnerability Detection
+- **Action:** Created AST and regex security rules in `backend/app/services/analysis/rules.py` covering CWE-120, CWE-787, CWE-476, and CWE-416.
+- **Action:** Implemented `backend/app/services/analysis/ast_scanner.py` with C syntax function boundary extractor, parameter type parsing, and pointer dereference tracing.
+- **Action:** Implemented `backend/app/services/analysis/engine.py` orchestrating shadow workspace scanning, Semgrep CLI detection, finding deduplication, and database persistence.
+- **Action:** Added Pydantic schemas in `backend/app/schemas/scan.py` and API endpoints in `backend/app/api/v1/scans.py` (`POST /scans/run`, `GET /scans/{scan_id}`, `GET /scans/project/{project_id}`, `GET /vulnerabilities/{vuln_id}`, `GET /vulnerabilities/project/{project_id}`).
+- **Action:** Connected frontend `VulnerabilityScanner.tsx` with dynamic project selector, live scan execution, and findings table.
+- **Action:** Tested static scanner on `fixtures/iot_firmware/sample_smart_meter.c` (`TEST-SCAN-01`, `TEST-SCAN-02`); full suite of 8 backend tests passing 100%. Verified frontend build with 0 errors.
+
 
 
 

@@ -92,3 +92,4 @@ def safe_extract_zip(zip_path: Path, destination_dir: Path) -> List[Path]:
             extracted_files.append(target_path)
 
     return extracted_files
+

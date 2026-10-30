@@ -19,4 +19,6 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-ING-02` | `pytest backend/tests/test_ingestion.py::test_zip_slip_rejection` | Verify Zip-Slip path-traversal attack is blocked | 0 | PASSED (IngestionSecurityError thrown on `../` entry) |
 | `TEST-ING-03` | `pytest backend/tests/test_ingestion.py::test_workspace_manager_sync_and_indexing` | Verify shadow copy sync and C/C++ file discovery | 0 | PASSED (read-only original copied to shadow, 2 C files indexed) |
 | `TEST-ING-04` | `pytest backend/tests/test_ingestion.py::test_upload_api_single_c_file` | Verify HTTP multipart upload, DB persistence, and listing | 0 | PASSED (HTTP 201 Created, project registered, files listed) |
+| `TEST-SCAN-01` | `pytest backend/tests/test_scanner.py::test_ast_scanner_on_smart_meter_fixture` | Verify AST scanner detects CWE-120 and CWE-476 on fixture | 0 | PASSED (accurate line numbers, function scopes, and snippets) |
+| `TEST-SCAN-02` | `pytest backend/tests/test_scanner.py::test_api_scan_workflow` | Verify HTTP scan trigger (`/scans/run`) and DB persistence | 0 | PASSED (HTTP 201 Created, vulnerabilities indexed, retrieved) |
 
