@@ -548,6 +548,32 @@ export const getDashboardAnalytics = async (): Promise<FullPipelineDashboardData
   return response.data.data;
 };
 
+export interface DemoStageReportData {
+  stage_name: string;
+  status: string;
+  details: string;
+  evidence: Record<string, string>;
+}
+
+export interface EndToEndDemonstrationData {
+  demonstration_id: string;
+  target_cwe: string;
+  cwe_title: string;
+  target_fixture: string;
+  total_stages: number;
+  stages_passed: number;
+  final_verdict: string;
+  verification_passport_id: string;
+  passport_signature_sha256: string;
+  stages: DemoStageReportData[];
+}
+
+export const runDemonstration = async (cweCode: string): Promise<EndToEndDemonstrationData> => {
+  const response = await api.post<ApiResponse<EndToEndDemonstrationData>>(`/demonstrations/run/${cweCode}`);
+  return response.data.data;
+};
+
+
 
 
 

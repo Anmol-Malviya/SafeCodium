@@ -17,3 +17,4 @@ async def test_analytics_dashboard_endpoint():
         assert "recent_activity" in data
         assert data["kpis"]["total_projects"] >= 0
         assert data["kpis"]["verification_success_rate"] >= 0.0
+

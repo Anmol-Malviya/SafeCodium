@@ -58,6 +58,10 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-FE-16` | `npm run build` | Verify frontend build with Security Assurance Reports & Passports UI | 0 | PASSED (2,138 modules transformed, dist built in 8.60s) |
 | `TEST-INT-01` | `pytest backend/tests/test_analytics.py::test_analytics_dashboard_endpoint` | Verify full-stack analytics endpoint `/api/v1/analytics/dashboard` | 0 | PASSED (HTTP 200, real-time KPIs and activity feed retrieved) |
 | `TEST-FE-17` | `npm run build` | Verify frontend build with integrated Dashboard & Project History UI | 0 | PASSED (2,138 modules transformed, dist built in 8.75s) |
+| `TEST-E2E-01` | `pytest backend/tests/test_e2e_demonstrations.py::test_end_to_end_demonstration_cwe120` | Full 10-stage autonomous demonstration of CWE-120 in smart meter | 0 | PASSED (all 10 stages PASSED, VERIFIED status, passport signed) |
+| `TEST-E2E-02` | `pytest backend/tests/test_e2e_demonstrations.py::test_end_to_end_demonstration_cwe476` | Full 10-stage autonomous demonstration of CWE-476 NULL dereference | 0 | PASSED (all 10 stages PASSED, VERIFIED status, passport signed) |
+| `TEST-FE-18` | `npm run build` | Verify frontend build with End-to-End Demonstration Runners UI | 0 | PASSED (2,139 modules transformed, dist built in 10.62s) |
+
 
 
 

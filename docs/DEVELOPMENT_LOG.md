@@ -159,7 +159,24 @@
 - **Action:** Upgraded `frontend/src/pages/Dashboard.tsx` with live telemetry polling, 4 KPI cards, interactive 8-step pipeline visual walkthrough, and real-time audit event feed.
 - **Action:** Upgraded `frontend/src/pages/ProjectHistory.tsx` with indexed firmware repository ledger and immutable audit events.
 - **Action:** Authored Pytest test suite `backend/tests/test_analytics.py` (`TEST-INT-01`). Full backend test suite of 37 tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 17 completed and verified.
+- **Result:** Phase 17 completed and verified (`7047fc2`).
+
+### Phase 18: End-to-End Vulnerability Verification Demonstrations
+- **Action:** Created `backend/app/services/demonstration/e2e_runner.py` executing 10 continuous autonomous lifecycle stages for CWE-120 and CWE-476 embedded smart meter firmware:
+  1. Ingestion & shadow workspace isolation
+  2. AST static detection
+  3. IoT peripheral context mapping
+  4. Root cause analysis
+  5. Defensive unified diff synthesis
+  6. Controlled shadow application
+  7. Dual compilation verification
+  8. ASan / UBSan runtime crash trapping & neutralization
+  9. 4-tier functional/exploit regression suite pass
+  10. Resource profiling (<256B Flash) and cryptographic verification passport signing
+- **Action:** Added schemas in `backend/app/schemas/demonstration.py` and REST endpoint `POST /api/v1/demonstrations/run/{cwe_code}` in `backend/app/api/v1/demonstrations.py`.
+- **Action:** Updated `frontend/src/pages/CodeAnalysis.tsx` with one-click interactive demonstration runners for both Demo 1 (CWE-120) and Demo 2 (CWE-476) with full stage-by-stage evidence reporting.
+- **Action:** Authored Pytest test suite `backend/tests/test_e2e_demonstrations.py` (`TEST-E2E-01`, `TEST-E2E-02`). All 39 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,139 modules, 0 errors).
+- **Result:** Phase 18 completed and verified.
 
 
 

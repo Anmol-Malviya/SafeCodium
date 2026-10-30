@@ -11,6 +11,7 @@ from backend.app.api.v1.patches import router as patches_router
 from backend.app.api.v1.verification import router as verification_router
 from backend.app.api.v1.reports import router as reports_router
 from backend.app.api.v1.analytics import router as analytics_router
+from backend.app.api.v1.demonstrations import router as demonstrations_router
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(health_router, tags=["Health & Diagnostics"])
@@ -23,4 +24,5 @@ api_router.include_router(patches_router, tags=["Automated Patch Generation"])
 api_router.include_router(verification_router, tags=["Dual Compilation & Verification"])
 api_router.include_router(reports_router, tags=["Security Assurance & Audit Passports"])
 api_router.include_router(analytics_router, tags=["Full-Stack System Analytics & Pipeline"])
+api_router.include_router(demonstrations_router, tags=["End-to-End Vulnerability Demonstrations"])
 

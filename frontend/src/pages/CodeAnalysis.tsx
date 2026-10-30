@@ -47,6 +47,23 @@ export const CodeAnalysis: React.FC = () => {
     loadContext(pid);
   };
 
+  const [demoResult, setDemoResult] = useState<any | null>(null);
+  const [isDemoRunning, setIsDemoRunning] = useState<boolean>(false);
+
+  const triggerE2eDemo = async (cwe: string) => {
+    setIsDemoRunning(true);
+    setDemoResult(null);
+    try {
+      const { runDemonstration } = await import('../services/api');
+      const res = await runDemonstration(cwe);
+      setDemoResult(res);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Demonstration execution failed');
+    } finally {
+      setIsDemoRunning(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Top Header & Selector */}
@@ -176,6 +193,65 @@ export const CodeAnalysis: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+          {/* Autonomous End-to-End Demonstration Triggers */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 border border-slate-800 space-y-4 font-mono text-xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center space-x-2 text-cyan-400 font-bold uppercase tracking-wider text-[11px]">
+                  <Activity className="w-4 h-4" />
+                  <span>Phase 18 Autonomous End-to-End Demonstrations</span>
+                </div>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Execute continuous 10-stage autonomous verification journeys on embedded smart meter firmware fixtures.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => triggerE2eDemo('CWE-120')}
+                  disabled={isDemoRunning}
+                  className="px-3.5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50"
+                >
+                  <span>{isDemoRunning ? 'Running Pipeline...' : '▶ Demo 1: CWE-120 Buffer Overflow'}</span>
+                </button>
+                <button
+                  onClick={() => triggerE2eDemo('CWE-476')}
+                  disabled={isDemoRunning}
+                  className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(168,85,247,0.3)] disabled:opacity-50"
+                >
+                  <span>{isDemoRunning ? 'Running Pipeline...' : '▶ Demo 2: CWE-476 NULL Pointer'}</span>
+                </button>
+              </div>
+            </div>
+
+            {demoResult && (
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-500/50 space-y-3 pt-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span className="font-bold text-white text-sm">
+                      {demoResult.target_cwe} Demonstration Complete ({demoResult.stages_passed}/{demoResult.total_stages} Stages Passed)
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                    VERDICT: {demoResult.final_verdict}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+                  {demoResult.stages.map((st: any, i: number) => (
+                    <div key={i} className="p-2 rounded bg-slate-900 border border-slate-800/80 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-cyan-300">{st.stage_name}</span>
+                        <span className="text-emerald-400 font-bold text-[10px]">✓ {st.status}</span>
+                      </div>
+                      <p className="text-slate-400 text-[10px]">{st.details}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

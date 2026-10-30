@@ -129,3 +129,4 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(get_db)):
             recent_activity=activities[:8],
         ),
     )
+
