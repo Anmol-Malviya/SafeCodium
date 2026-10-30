@@ -137,8 +137,57 @@ export const getProjectVulnerabilities = async (projectId: string): Promise<Vuln
   return response.data.data;
 };
 
+export interface PeripheralSourceData {
+  peripheral_type: string;
+  identifier: string;
+  description: string;
+  risk_level: string;
+}
+
+export interface IotProjectContextSummaryData {
+  project_id: string;
+  framework_type: string;
+  detected_peripherals: PeripheralSourceData[];
+  total_source_files: number;
+  memory_architecture: string;
+  operating_system: string;
+}
+
+export interface IotContextBundleData {
+  project_id: string;
+  vulnerability_id: string;
+  framework_type: string;
+  target_architecture: string;
+  operating_system: string;
+  file_path: string;
+  function_name: string | null;
+  function_start_line: number | null;
+  function_end_line: number | null;
+  function_source_code: string;
+  surrounding_context_snippet: string;
+  peripheral_sources: PeripheralSourceData[];
+  is_external_taint: boolean;
+  memory_model_notes: string;
+  defensive_idioms: string[];
+}
+
+export const getProjectFiles = async (projectId: string): Promise<SourceFileData[]> => {
+  const response = await api.get<ApiResponse<SourceFileData[]>>(`/projects/${projectId}/files`);
+  return response.data.data;
+};
+
 export const getVulnerabilityDetails = async (vulnId: string): Promise<EnrichedVulnerabilityData> => {
   const response = await api.get<ApiResponse<EnrichedVulnerabilityData>>(`/vulnerabilities/${vulnId}`);
+  return response.data.data;
+};
+
+export const getProjectIotSummary = async (projectId: string): Promise<IotProjectContextSummaryData> => {
+  const response = await api.get<ApiResponse<IotProjectContextSummaryData>>(`/iot-context/project/${projectId}`);
+  return response.data.data;
+};
+
+export const getVulnerabilityIotContext = async (vulnId: string): Promise<IotContextBundleData> => {
+  const response = await api.get<ApiResponse<IotContextBundleData>>(`/iot-context/vulnerability/${vulnId}`);
   return response.data.data;
 };
 

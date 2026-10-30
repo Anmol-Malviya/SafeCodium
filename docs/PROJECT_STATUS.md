@@ -17,7 +17,7 @@
 | **Phase 4** | Source Code & Firmware Ingestion | **COMPLETED** | 2026-10-30 |
 | **Phase 5** | Static Vulnerability Detection Engine | **COMPLETED** | 2026-10-30 |
 | **Phase 6** | CWE Classification & Finding Normalization | **COMPLETED** | 2026-10-30 |
-| **Phase 7** | IoT Firmware Context Intelligence | PENDING | — |
+| **Phase 7** | IoT Firmware Context Intelligence | **COMPLETED** | 2026-10-30 |
 | **Phase 8** | Multi-Provider AI Engine (Gemini / OpenAI / Ollama) | PENDING | — |
 | **Phase 9** | AI Vulnerability Reasoning & Root Cause Analysis | PENDING | — |
 | **Phase 10** | Automated Secure Patch Synthesis | PENDING | — |

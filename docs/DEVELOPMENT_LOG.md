@@ -62,6 +62,15 @@
 - **Action:** Added `EnrichedVulnerabilityResponse` schema and updated `/api/v1/vulnerabilities/{vuln_id}` and `/api/v1/vulnerabilities/project/{project_id}` endpoints.
 - **Action:** Upgraded `frontend/src/pages/VulnerabilityDetails.tsx` with full CWE taxonomy view, CVSS v3.1 score pill, IoT impact analysis, code line preview, and mitigation checklist.
 - **Action:** Added Pytest suite `backend/tests/test_cwe_normalizer.py` (`TEST-NORM-01`, `TEST-NORM-02`, `TEST-NORM-03`). All 11 tests across the entire backend suite passing 100%.
+- **Result:** Phase 6 approved and committed (`e2c7a64`).
+
+### Phase 7: IoT Firmware Context Intelligence
+- **Action:** Implemented `backend/app/services/iot_context/peripheral_analyzer.py` detecting hardware peripheral register interactions (UART, ADC, SPI, I2C, BLE, WiFi, MMIO, FreeRTOS queues) and categorizing external taint risks.
+- **Action:** Implemented `backend/app/services/iot_context/context_bundle.py` assembling structured `IotContextBundle` objects combining function AST, surrounding code lines, memory limits, and target architecture rules (Xtensa LX6/LX7, ARM Cortex-M).
+- **Action:** Added API endpoints in `backend/app/api/v1/iot_context.py` (`GET /api/v1/iot-context/vulnerability/{vuln_id}`, `GET /api/v1/iot-context/project/{project_id}`).
+- **Action:** Updated `frontend/src/pages/CodeAnalysis.tsx` to display real hardware peripheral taint graphs, operating system detection (FreeRTOS vs Bare-Metal), and source inventory metrics.
+- **Action:** Verified with `backend/tests/test_iot_context.py` (`TEST-IOT-01`, `TEST-IOT-02`). All 13 tests across the entire backend suite passing 100%. Verified frontend production build with 0 errors.
+
 
 
 

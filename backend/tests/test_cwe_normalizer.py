@@ -86,3 +86,4 @@ async def test_enriched_vulnerability_api():
         assert "iot_impact" in enriched_data
         assert "mitigation_strategies" in enriched_data
         assert enriched_data["cvss_base_score"] > 0
+

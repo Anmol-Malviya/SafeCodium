@@ -132,3 +132,4 @@ def get_cwe_metadata(cwe_id: str) -> CweDefinition:
         mitigation_strategies=["Review code logic and apply defensive checks."],
         common_consequences=["Unexpected system behavior"],
     )
+

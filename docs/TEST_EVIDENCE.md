@@ -24,4 +24,6 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-NORM-01` | `pytest backend/tests/test_cwe_normalizer.py::test_cwe_catalog_definitions` | Verify CWE catalog metadata (CVSS scores, vectors, mitigations) | 0 | PASSED (CWE-120 9.8, CWE-476 7.5, mitigations validated) |
 | `TEST-NORM-02` | `pytest backend/tests/test_cwe_normalizer.py::test_finding_normalizer_enrichment` | Verify finding normalization, confidence score & IoT impact | 0 | PASSED (HIGH confidence 0.98 assigned, full metadata mapped) |
 | `TEST-NORM-03` | `pytest backend/tests/test_cwe_normalizer.py::test_enriched_vulnerability_api` | Verify GET `/vulnerabilities/{id}` returns CVSS & taxonomy | 0 | PASSED (HTTP 200, enriched payload verified) |
+| `TEST-IOT-01` | `pytest backend/tests/test_iot_context.py::test_peripheral_analyzer_detection` | Verify hardware peripheral detection (UART FIFO, ADC, FreeRTOS) | 0 | PASSED (accurate classification of UNTRUSTED_EXTERNAL taint) |
+| `TEST-IOT-02` | `pytest backend/tests/test_iot_context.py::test_api_iot_context_endpoints` | Verify `/iot-context/project/{id}` and `/iot-context/vulnerability/{id}` | 0 | PASSED (HTTP 200, context bundle populated with memory rules) |
 
