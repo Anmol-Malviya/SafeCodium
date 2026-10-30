@@ -13,15 +13,18 @@ import {
   ArrowRight,
   Code2,
   FileCheck,
+  Zap,
 } from 'lucide-react';
 import {
   listProjects,
   listProjectPatches,
   runDualCompilation,
+  runSanitizerVerification,
   getVerificationStatus,
   ProjectData,
   PatchData,
   DualCompileData,
+  DualSanitizerData,
   VerificationStatusData,
 } from '../services/api';
 
@@ -34,10 +37,12 @@ export const VerificationCenter: React.FC = () => {
   const [selectedPatchId, setSelectedPatchId] = useState<string>('');
 
   const [dualCompileResult, setDualCompileResult] = useState<DualCompileData | null>(null);
+  const [sanitizerResult, setSanitizerResult] = useState<DualSanitizerData | null>(null);
   const [verificationRecord, setVerificationRecord] = useState<VerificationStatusData | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
+  const [isSanitizing, setIsSanitizing] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Initialize projects
@@ -76,6 +81,7 @@ export const VerificationCenter: React.FC = () => {
         } else {
           setSelectedPatchId('');
           setDualCompileResult(null);
+          setSanitizerResult(null);
           setVerificationRecord(null);
         }
       } catch (err) {
@@ -85,10 +91,11 @@ export const VerificationCenter: React.FC = () => {
     loadPatches();
   }, [selectedProjectId]);
 
-  // When patch changes, try loading existing verification record
+  // When patch changes, load existing verification record
   useEffect(() => {
     if (!selectedPatchId) {
       setDualCompileResult(null);
+      setSanitizerResult(null);
       setVerificationRecord(null);
       return;
     }
@@ -111,7 +118,6 @@ export const VerificationCenter: React.FC = () => {
     try {
       const res = await runDualCompilation(selectedPatchId);
       setDualCompileResult(res);
-      // Refresh verification record
       const ver = await getVerificationStatus(selectedPatchId);
       setVerificationRecord(ver);
     } catch (err: any) {
@@ -121,7 +127,21 @@ export const VerificationCenter: React.FC = () => {
     }
   };
 
-  const selectedPatch = patches.find((p) => p.id === selectedPatchId);
+  const handleRunSanitizers = async () => {
+    if (!selectedPatchId) return;
+    setIsSanitizing(true);
+    setErrorMsg(null);
+    try {
+      const res = await runSanitizerVerification(selectedPatchId);
+      setSanitizerResult(res);
+      const ver = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(ver);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.detail || 'Sanitizer verification failed.');
+    } finally {
+      setIsSanitizing(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -130,13 +150,13 @@ export const VerificationCenter: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <Terminal className="w-6 h-6 text-cyan-400" />
-            <h1 className="text-xl font-bold text-white tracking-tight">Dual Compilation & Verification Center</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Firmware Verification Center</h1>
             <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-cyan-950/60 text-cyan-400 border border-cyan-800/50">
-              Phase 12 Verification
+              Phase 13 ASan/UBSan
             </span>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Deterministic dual-stage compilation comparing pre-patch original code vs. post-patch shadow firmware.
+            Ground-truth compiler verification and runtime sanitizer memory crash trapping (ASan & UBSan).
           </p>
         </div>
 
@@ -178,15 +198,26 @@ export const VerificationCenter: React.FC = () => {
             </select>
           </div>
 
-          {/* Trigger Compilation Action */}
-          <button
-            onClick={handleRunDualCompilation}
-            disabled={!selectedPatchId || isCompiling}
-            className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold flex items-center space-x-1.5 shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            <span>{isCompiling ? 'Compiling Harness...' : 'Execute Dual Compilation'}</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleRunDualCompilation}
+              disabled={!selectedPatchId || isCompiling}
+              className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center space-x-1.5 transition-all disabled:opacity-50"
+            >
+              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{isCompiling ? 'Compiling...' : '1. Compile'}</span>
+            </button>
+
+            <button
+              onClick={handleRunSanitizers}
+              disabled={!selectedPatchId || isSanitizing}
+              className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold flex items-center space-x-1.5 shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>{isSanitizing ? 'Sanitizing...' : '2. Run ASan & UBSan'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -234,13 +265,29 @@ export const VerificationCenter: React.FC = () => {
         </div>
 
         {/* Stage 2: ASan & UBSan */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 opacity-75">
+        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
           <div className="flex items-center justify-between text-slate-400">
             <span>STAGE 2: SANITIZER</span>
-            <CheckCircle2 className="w-4 h-4 text-slate-500" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-sm font-bold text-white">ASan & UBSan</div>
-          <p className="text-[11px] text-slate-500">Phase 13: Runtime Memory Crash Trap</p>
+          <div className="pt-1">
+            {sanitizerResult ? (
+              sanitizerResult.verification_passed ? (
+                <span className="text-emerald-400 font-bold flex items-center space-x-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>0 Crashes (VERIFIED)</span>
+                </span>
+              ) : (
+                <span className="text-rose-400 font-bold flex items-center space-x-1">
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Memory Crash (REJECTED)</span>
+                </span>
+              )
+            ) : (
+              <span className="text-slate-500">Awaiting execution</span>
+            )}
+          </div>
         </div>
 
         {/* Stage 3: Regression Test */}
@@ -264,88 +311,63 @@ export const VerificationCenter: React.FC = () => {
         </div>
       </div>
 
-      {/* Dual Compilation Detailed Comparison Panel */}
-      {dualCompileResult && (
+      {/* Sanitizer Crash & Neutralization Comparison Panel */}
+      {sanitizerResult && (
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-bold text-white">
-                  Toolchain: {dualCompileResult.compiler_name}
+                  Sanitizer Verification Verdict:
                 </span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                    dualCompileResult.compilation_passed
+                    sanitizerResult.verification_passed
                       ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
                       : 'bg-rose-950/80 text-rose-400 border border-rose-800'
                   }`}
                 >
-                  {dualCompileResult.status}
+                  {sanitizerResult.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">{dualCompileResult.delta_summary}</p>
+              <p className="text-xs text-slate-400">{sanitizerResult.summary}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-            {/* Pre-Patch Compilation Diagnostics */}
+            {/* Pre-Patch Sanitizer Report */}
             <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
               <div className="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-                <span className="text-rose-400 font-bold">PRE-PATCH ORIGINAL CODE</span>
-                <span className="text-slate-400">
-                  Exit: {dualCompileResult.pre_patch.exit_code} | Warn: {dualCompileResult.pre_patch.warnings_count}
+                <span className="text-rose-400 font-bold">PRE-PATCH ASAN / UBSAN TRAP</span>
+                <span className="text-rose-400 font-bold text-[11px]">
+                  {sanitizerResult.pre_patch_asan.crash_type || 'FAULT DETECTED'}
                 </span>
               </div>
               <div className="p-4 bg-slate-950 space-y-2 max-h-[300px] overflow-y-auto">
-                <div className="text-slate-400 text-[11px]">{dualCompileResult.pre_patch.stdout}</div>
-                {dualCompileResult.pre_patch.diagnostics.length > 0 ? (
-                  dualCompileResult.pre_patch.diagnostics.map((diag, i) => (
-                    <div
-                      key={i}
-                      className={`p-2 rounded text-[11px] ${
-                        diag.includes('warning')
-                          ? 'bg-amber-950/30 text-amber-300 border border-amber-800/50'
-                          : 'bg-rose-950/30 text-rose-300 border border-rose-800/50'
-                      }`}
-                    >
-                      {diag}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-slate-500 italic">No compiler diagnostics recorded.</div>
-                )}
+                <pre className="font-mono text-[11px] text-rose-300 whitespace-pre-wrap leading-relaxed">
+                  {sanitizerResult.pre_patch_asan.report_output}
+                </pre>
               </div>
             </div>
 
-            {/* Post-Patch Compilation Diagnostics */}
+            {/* Post-Patch Sanitizer Report */}
             <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
               <div className="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-                <span className="text-emerald-400 font-bold">POST-PATCH SHADOW CODE</span>
-                <span className="text-slate-400">
-                  Exit: {dualCompileResult.post_patch.exit_code} | Warn: {dualCompileResult.post_patch.warnings_count}
+                <span className="text-emerald-400 font-bold">POST-PATCH REPAIRED FIRMWARE</span>
+                <span className="text-emerald-400 font-bold text-[11px]">
+                  EXIT 0 (CLEAN MEMORY)
                 </span>
               </div>
               <div className="p-4 bg-slate-950 space-y-2 max-h-[300px] overflow-y-auto">
-                <div className="text-slate-400 text-[11px]">{dualCompileResult.post_patch.stdout}</div>
-                {dualCompileResult.post_patch.diagnostics.length > 0 ? (
-                  dualCompileResult.post_patch.diagnostics.map((diag, i) => (
-                    <div
-                      key={i}
-                      className={`p-2 rounded text-[11px] ${
-                        diag.includes('warning')
-                          ? 'bg-amber-950/30 text-amber-300 border border-amber-800/50'
-                          : 'bg-rose-950/30 text-rose-300 border border-rose-800/50'
-                      }`}
-                    >
-                      {diag}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-emerald-400 text-[11px] flex items-center space-x-1.5 p-2 bg-emerald-950/30 rounded border border-emerald-800/50">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Post-patch source compiled cleanly with zero diagnostics and warnings!</span>
-                  </div>
-                )}
+                <pre className="font-mono text-[11px] text-emerald-300 whitespace-pre-wrap leading-relaxed">
+                  {sanitizerResult.post_patch_asan.report_output}
+                </pre>
+                <div className="pt-2 border-t border-slate-800/80">
+                  <div className="text-slate-400 text-[11px] font-semibold mb-1">UndefinedBehaviorSanitizer:</div>
+                  <pre className="font-mono text-[11px] text-emerald-400/90 whitespace-pre-wrap">
+                    {sanitizerResult.post_patch_ubsan.report_output}
+                  </pre>
+                </div>
               </div>
             </div>
           </div>

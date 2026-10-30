@@ -396,5 +396,33 @@ export const getVerificationStatus = async (patchId: string): Promise<Verificati
   return response.data.data;
 };
 
+export interface SanitizerRunData {
+  sanitizer_type: string;
+  exit_code: number;
+  passed: boolean;
+  crash_detected: boolean;
+  crash_type: string | null;
+  report_output: string;
+  stack_trace: string[];
+  memory_leak_detected: boolean;
+}
+
+export interface DualSanitizerData {
+  patch_id: string;
+  pre_patch_asan: SanitizerRunData;
+  post_patch_asan: SanitizerRunData;
+  pre_patch_ubsan: SanitizerRunData;
+  post_patch_ubsan: SanitizerRunData;
+  verification_passed: boolean;
+  status: string;
+  summary: string;
+}
+
+export const runSanitizerVerification = async (patchId: string): Promise<DualSanitizerData> => {
+  const response = await api.post<ApiResponse<DualSanitizerData>>(`/verification/sanitizers/${patchId}`);
+  return response.data.data;
+};
+
+
 
 

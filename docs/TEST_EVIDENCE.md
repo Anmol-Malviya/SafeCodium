@@ -43,6 +43,11 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-CMP-02` | `pytest backend/tests/test_compiler_harness.py::test_compiler_harness_detects_unsafe_and_syntax_error` | Verify detection of deprecated unsafe functions and syntax errors | 0 | PASSED (deprecated warning detected, unbalanced syntax returns exit 1) |
 | `TEST-CMP-03` | `pytest backend/tests/test_compiler_harness.py::test_api_dual_compilation_endpoint` | Verify HTTP endpoint `/api/v1/verification/compile/{patch_id}` | 0 | PASSED (pre-patch warnings recorded, post-patch passes exit 0, DB verified) |
 | `TEST-FE-12` | `npm run build` | Verify frontend build with Dual Compilation Center UI | 0 | PASSED (2,138 modules transformed, dist built in 10.57s) |
+| `TEST-SAN-01` | `pytest backend/tests/test_sanitizer_harness.py::test_sanitizer_harness_detects_asan_buffer_overflow` | Verify ASan traps stack-buffer-overflow on vulnerable C code | 0 | PASSED (AddressSanitizer stack-buffer-overflow triggered, crash detected) |
+| `TEST-SAN-02` | `pytest backend/tests/test_sanitizer_harness.py::test_sanitizer_harness_verifies_repaired_source` | Verify ASan & UBSan clean pass on defensive repaired C code | 0 | PASSED (0 errors, 0 undefined behaviors detected, exit code 0) |
+| `TEST-SAN-03` | `pytest backend/tests/test_sanitizer_harness.py::test_api_sanitizer_verification_endpoint` | Verify HTTP `/api/v1/verification/sanitizers/{patch_id}` | 0 | PASSED (HTTP 200, status VERIFIED, DB verification record updated) |
+| `TEST-FE-13` | `npm run build` | Verify frontend build with ASan/UBSan Verification Center UI | 0 | PASSED (2,138 modules transformed, dist built in 8.74s) |
+
 
 
 

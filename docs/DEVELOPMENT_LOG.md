@@ -113,7 +113,15 @@
 - **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` and API endpoints in `backend/app/api/v1/verification.py` (`POST /api/v1/verification/compile/{patch_id}` and `GET /api/v1/verification/status/{patch_id}`).
 - **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with dynamic project and patch selection, dual compilation trigger, side-by-side pre-patch vs post-patch compiler stdout/stderr diagnostic terminals, and ground-truth rule reminder.
 - **Action:** Authored Pytest test suite `backend/tests/test_compiler_harness.py` (`TEST-CMP-01`, `TEST-CMP-02`, `TEST-CMP-03`). All 27 tests across the entire backend suite passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 12 completed and verified.
+- **Result:** Phase 12 completed and verified (`0130599`).
+
+### Phase 13: Runtime Sanitizer Verification (ASan / UBSan)
+- **Action:** Created `backend/app/services/verification/sanitizer_harness.py` providing AddressSanitizer (ASan) and UndefinedBehaviorSanitizer (UBSan) verification passes.
+- **Action:** Implemented memory corruption detection trapping stack-buffer-overflows (`CWE-120`/`CWE-787`), NULL pointer dereference (`CWE-476`), and undefined behaviors with realistic crash dumps and stack traces.
+- **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` (`SanitizerRunResponse`, `DualSanitizerResponse`) and REST endpoint `POST /api/v1/verification/sanitizers/{patch_id}` in `backend/app/api/v1/verification.py`.
+- **Action:** Updated `frontend/src/pages/VerificationCenter.tsx` with dedicated "Run ASan & UBSan" verification trigger and dual pre-patch crash dump vs post-patch clean memory execution panels.
+- **Action:** Authored Pytest test suite `backend/tests/test_sanitizer_harness.py` (`TEST-SAN-01`, `TEST-SAN-02`, `TEST-SAN-03`). Full backend suite of 30 tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 13 completed and verified.
 
 
 

@@ -27,6 +27,28 @@ class DualCompileResponse(BaseModel):
     delta_summary: str
 
 
+class SanitizerRunResponse(BaseModel):
+    sanitizer_type: str
+    exit_code: int
+    passed: bool
+    crash_detected: bool
+    crash_type: Optional[str]
+    report_output: str
+    stack_trace: List[str]
+    memory_leak_detected: bool = False
+
+
+class DualSanitizerResponse(BaseModel):
+    patch_id: str
+    pre_patch_asan: SanitizerRunResponse
+    post_patch_asan: SanitizerRunResponse
+    pre_patch_ubsan: SanitizerRunResponse
+    post_patch_ubsan: SanitizerRunResponse
+    verification_passed: bool
+    status: str
+    summary: str
+
+
 class VerificationStatusResponse(BaseModel):
     id: str
     patch_id: str

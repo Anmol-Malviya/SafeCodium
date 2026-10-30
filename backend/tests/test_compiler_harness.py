@@ -129,3 +129,4 @@ async def test_api_dual_compilation_endpoint(tmp_path):
         assert stat_resp.status_code == 200
         stat_data = stat_resp.json()["data"]
         assert stat_data["post_patch_compiler_exit"] == 0
+
