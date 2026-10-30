@@ -1,0 +1,15 @@
+fastapi>=0.119.0
+uvicorn[standard]>=0.39.0
+pydantic>=2.14.0
+pydantic-settings>=2.15.0
+sqlalchemy>=2.0.50
+aiosqlite>=0.22.0
+google-genai>=2.29.0
+httpx>=0.28.0
+python-multipart>=0.0.30
+python-dotenv>=1.2.0
+pytest>=9.1.0
+pytest-asyncio>=1.4.0
+reportlab>=5.1.0
+libclang>=18.1.1
+rich>=15.0.0
