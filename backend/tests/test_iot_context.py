@@ -64,3 +64,4 @@ async def test_api_iot_context_endpoints():
         assert len(bundle["defensive_idioms"]) > 0
         assert "memory_model_notes" in bundle
         assert len(bundle["surrounding_context_snippet"]) > 0
+

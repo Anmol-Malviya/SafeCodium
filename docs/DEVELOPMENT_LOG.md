@@ -70,6 +70,18 @@
 - **Action:** Added API endpoints in `backend/app/api/v1/iot_context.py` (`GET /api/v1/iot-context/vulnerability/{vuln_id}`, `GET /api/v1/iot-context/project/{project_id}`).
 - **Action:** Updated `frontend/src/pages/CodeAnalysis.tsx` to display real hardware peripheral taint graphs, operating system detection (FreeRTOS vs Bare-Metal), and source inventory metrics.
 - **Action:** Verified with `backend/tests/test_iot_context.py` (`TEST-IOT-01`, `TEST-IOT-02`). All 13 tests across the entire backend suite passing 100%. Verified frontend production build with 0 errors.
+- **Result:** Phase 7 approved and committed (`921111e`).
+
+### Phase 8: Multi-Provider AI Engine
+- **Action:** Created structured AI response schemas in `backend/app/ai_engine/schemas.py` (`AiReasoningResponse`, `AiPatchResponse`, `ProviderStatus`).
+- **Action:** Formulated prompt templates in `backend/app/ai_engine/prompts.py` enforcing C99/C11 embedded memory constraints, real-time stack limits, and unified diff syntax.
+- **Action:** Implemented `backend/app/ai_engine/gemini_provider.py` using official Google GenAI SDK (`google-genai` v2.29.0) with deterministic fallback synthesizer.
+- **Action:** Implemented `backend/app/ai_engine/openai_provider.py` and `backend/app/ai_engine/ollama_provider.py` for local Gemma 3 4B execution.
+- **Action:** Built `backend/app/ai_engine/router.py` orchestrating multi-provider selection, availability probing, and transparent logging.
+- **Action:** Added API endpoints in `backend/app/api/v1/ai.py` (`GET /api/v1/ai/providers`, `POST /api/v1/ai/reasoning`, `POST /api/v1/ai/patch`).
+- **Action:** Connected frontend `SettingsPage.tsx` with dynamic AI provider probe telemetry.
+- **Action:** Authored Pytest test suite `backend/tests/test_ai_router.py` (`TEST-AI-01`, `TEST-AI-02`, `TEST-AI-03`, `TEST-AI-04`). All 17 backend tests passing 100%. Verified frontend build with 0 errors.
+
 
 
 

@@ -186,8 +186,78 @@ export const getProjectIotSummary = async (projectId: string): Promise<IotProjec
   return response.data.data;
 };
 
+export interface ProviderStatusData {
+  provider_name: string;
+  model_name: string;
+  is_available: boolean;
+  is_primary: boolean;
+  status_message: string;
+}
+
+export interface AiReasoningRequestData {
+  vulnerability_id: string;
+  cwe_id: string;
+  vulnerable_code: string;
+  file_path: string;
+  line_number: number;
+  function_name?: string | null;
+  function_source_code?: string | null;
+  target_architecture?: string;
+  operating_system?: string;
+  peripheral_context?: string | null;
+  provider?: string | null;
+}
+
+export interface AiReasoningResponseData {
+  provider: string;
+  model_name: string;
+  root_cause_analysis: string;
+  attack_vector_explanation: string;
+  iot_hardware_impact: string;
+  recommended_strategy: string;
+  defensive_guidelines: string[];
+  confidence_assessment: string;
+}
+
+export interface AiPatchRequestData {
+  vulnerability_id: string;
+  cwe_id: string;
+  file_path: string;
+  original_code: string;
+  function_source_code: string;
+  repair_strategy?: string | null;
+  target_architecture?: string;
+  operating_system?: string;
+  provider?: string | null;
+}
+
+export interface AiPatchResponseData {
+  provider: string;
+  model_name: string;
+  unified_diff: string;
+  explanation: string;
+  repaired_code: string;
+  defensive_checks_added: string[];
+  side_effect_assessment: string;
+}
+
 export const getVulnerabilityIotContext = async (vulnId: string): Promise<IotContextBundleData> => {
   const response = await api.get<ApiResponse<IotContextBundleData>>(`/iot-context/vulnerability/${vulnId}`);
+  return response.data.data;
+};
+
+export const getAiProviders = async (): Promise<ProviderStatusData[]> => {
+  const response = await api.get<ApiResponse<ProviderStatusData[]>>('/ai/providers');
+  return response.data.data;
+};
+
+export const generateAiReasoning = async (request: AiReasoningRequestData): Promise<AiReasoningResponseData> => {
+  const response = await api.post<ApiResponse<AiReasoningResponseData>>('/ai/reasoning', request);
+  return response.data.data;
+};
+
+export const synthesizeAiPatch = async (request: AiPatchRequestData): Promise<AiPatchResponseData> => {
+  const response = await api.post<ApiResponse<AiPatchResponseData>>('/ai/patch', request);
   return response.data.data;
 };
 

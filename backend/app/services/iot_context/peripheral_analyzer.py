@@ -90,3 +90,4 @@ class PeripheralAnalyzer:
                     )
 
         return sources
+

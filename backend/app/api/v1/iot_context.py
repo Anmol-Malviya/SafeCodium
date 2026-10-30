@@ -93,3 +93,4 @@ async def get_project_iot_summary(
         message="Project IoT hardware summary generated",
         data=summary,
     )
+

@@ -5,10 +5,12 @@ from backend.app.api.v1.health import router as health_router
 from backend.app.api.v1.projects import router as projects_router
 from backend.app.api.v1.scans import router as scans_router
 from backend.app.api.v1.iot_context import router as iot_context_router
+from backend.app.api.v1.ai import router as ai_router
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(health_router, tags=["Health & Diagnostics"])
 api_router.include_router(projects_router, tags=["Project Ingestion"])
 api_router.include_router(scans_router, tags=["Vulnerability Scanning"])
 api_router.include_router(iot_context_router, tags=["IoT Context Intelligence"])
+api_router.include_router(ai_router, tags=["AI Engine & Providers"])
 

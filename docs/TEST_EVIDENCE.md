@@ -26,4 +26,8 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-NORM-03` | `pytest backend/tests/test_cwe_normalizer.py::test_enriched_vulnerability_api` | Verify GET `/vulnerabilities/{id}` returns CVSS & taxonomy | 0 | PASSED (HTTP 200, enriched payload verified) |
 | `TEST-IOT-01` | `pytest backend/tests/test_iot_context.py::test_peripheral_analyzer_detection` | Verify hardware peripheral detection (UART FIFO, ADC, FreeRTOS) | 0 | PASSED (accurate classification of UNTRUSTED_EXTERNAL taint) |
 | `TEST-IOT-02` | `pytest backend/tests/test_iot_context.py::test_api_iot_context_endpoints` | Verify `/iot-context/project/{id}` and `/iot-context/vulnerability/{id}` | 0 | PASSED (HTTP 200, context bundle populated with memory rules) |
+| `TEST-AI-01` | `pytest backend/tests/test_ai_router.py::test_provider_availability_probe` | Probe operational health of Gemini, OpenAI, and Ollama | 0 | PASSED (all 3 providers probed cleanly with explicit status) |
+| `TEST-AI-02` | `pytest backend/tests/test_ai_router.py::test_ai_reasoning_generation` | Generate structured root-cause analysis and hardware impact | 0 | PASSED (valid Pydantic AiReasoningResponse returned) |
+| `TEST-AI-03` | `pytest backend/tests/test_ai_router.py::test_ai_patch_synthesis_diff_format` | Synthesize unified diff defensive patch | 0 | PASSED (valid unified diff format `--- a/ +++ b/` produced) |
+| `TEST-AI-04` | `pytest backend/tests/test_ai_router.py::test_ai_api_endpoints` | Verify HTTP API routes `/ai/providers`, `/ai/reasoning`, `/ai/patch` | 0 | PASSED (HTTP 200 on all AI router endpoints) |
 

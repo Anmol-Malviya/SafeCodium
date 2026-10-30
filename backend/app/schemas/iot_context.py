@@ -12,3 +12,4 @@ class IotProjectContextSummary(BaseModel):
     total_source_files: int
     memory_architecture: str
     operating_system: str
+
