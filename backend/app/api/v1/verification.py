@@ -13,10 +13,13 @@ from backend.app.schemas.verification import (
     CompileResultResponse,
     DualCompileResponse,
     DualSanitizerResponse,
+    RegressionSuiteResponse,
     SanitizerRunResponse,
+    TestCaseResponse,
     VerificationStatusResponse,
 )
 from backend.app.services.verification.compiler_harness import DualCompilerHarness
+from backend.app.services.verification.regression_harness import RegressionTestHarness
 from backend.app.services.verification.sanitizer_harness import SanitizerVerificationHarness
 
 router = APIRouter(prefix="/verification", tags=["Dual Compilation & Verification"])
@@ -197,6 +200,105 @@ async def trigger_sanitizer_verification(patch_id: str, db: AsyncSession = Depen
             verification_passed=san_comp.verification_passed,
             status=san_comp.status,
             summary=san_comp.summary,
+        ),
+    )
+
+
+@router.post("/regression/{patch_id}", response_model=ApiResponse[RegressionSuiteResponse])
+async def trigger_regression_suite(patch_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Executes 4-tier functional & exploit regression matrix:
+    1. Benign functional sensor packet.
+    2. Boundary limit capacity.
+    3. Adversarial exploit payload.
+    4. NULL fault injection.
+    """
+    result = await db.execute(select(Patch).where(Patch.id == patch_id))
+    patch = result.scalar_one_or_none()
+    if not patch:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patch not found")
+
+    vuln_res = await db.execute(select(Vulnerability).where(Vulnerability.id == patch.vulnerability_id))
+    vuln = vuln_res.scalar_one_or_none()
+    if not vuln:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vulnerability not found")
+
+    proj_res = await db.execute(select(Project).where(Project.id == vuln.project_id))
+    project = proj_res.scalar_one_or_none()
+    if not project or not project.original_path or not project.shadow_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project workspaces not properly configured")
+
+    orig_path = Path(project.original_path) / vuln.file_path
+    if not orig_path.exists():
+        candidates = list(Path(project.original_path).glob(f"**/{Path(vuln.file_path).name}"))
+        if candidates:
+            orig_path = candidates[0]
+
+    shadow_path = Path(project.shadow_path) / vuln.file_path
+    if not shadow_path.exists():
+        candidates = list(Path(project.shadow_path).glob(f"**/{Path(vuln.file_path).name}"))
+        if candidates:
+            shadow_path = candidates[0]
+
+    reg_suite = RegressionTestHarness.run_regression_suite(
+        patch_id=patch.id,
+        cwe_id=vuln.cwe_id,
+        original_source_path=str(orig_path),
+        shadow_source_path=str(shadow_path),
+    )
+
+    ver_res = await db.execute(select(Verification).where(Verification.patch_id == patch.id))
+    verification = ver_res.scalar_one_or_none()
+    if not verification:
+        verification = Verification(
+            patch_id=patch.id,
+            test_suite_passed=reg_suite.suite_passed,
+            test_results_json={
+                "total_cases": reg_suite.total_cases,
+                "passed_cases": reg_suite.passed_cases,
+                "summary": reg_suite.summary,
+            },
+            final_status="INCONCLUSIVE",
+        )
+        db.add(verification)
+    else:
+        verification.test_suite_passed = reg_suite.suite_passed
+        verification.test_results_json = {
+            "total_cases": reg_suite.total_cases,
+            "passed_cases": reg_suite.passed_cases,
+            "summary": reg_suite.summary,
+        }
+
+    await db.commit()
+    await db.refresh(verification)
+
+    return ApiResponse(
+        success=reg_suite.suite_passed,
+        message=reg_suite.summary,
+        data=RegressionSuiteResponse(
+            patch_id=reg_suite.patch_id,
+            total_cases=reg_suite.total_cases,
+            passed_cases=reg_suite.passed_cases,
+            failed_cases=reg_suite.failed_cases,
+            suite_passed=reg_suite.suite_passed,
+            status=reg_suite.status,
+            cases=[
+                TestCaseResponse(
+                    case_id=c.case_id,
+                    case_name=c.case_name,
+                    category=c.category,
+                    input_vector=c.input_vector,
+                    expected_behavior=c.expected_behavior,
+                    pre_patch_passed=c.pre_patch_passed,
+                    pre_patch_behavior=c.pre_patch_behavior,
+                    post_patch_passed=c.post_patch_passed,
+                    post_patch_behavior=c.post_patch_behavior,
+                    regression_detected=c.regression_detected,
+                    vulnerability_neutralized=c.vulnerability_neutralized,
+                )
+                for c in reg_suite.cases
+            ],
+            summary=reg_suite.summary,
         ),
     )
 

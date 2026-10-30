@@ -134,3 +134,4 @@ async def test_api_sanitizer_verification_endpoint(tmp_path):
         assert stat_resp.status_code == 200
         stat_data = stat_resp.json()["data"]
         assert stat_data["asan_exit_code"] == 0
+

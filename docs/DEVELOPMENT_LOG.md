@@ -121,7 +121,19 @@
 - **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` (`SanitizerRunResponse`, `DualSanitizerResponse`) and REST endpoint `POST /api/v1/verification/sanitizers/{patch_id}` in `backend/app/api/v1/verification.py`.
 - **Action:** Updated `frontend/src/pages/VerificationCenter.tsx` with dedicated "Run ASan & UBSan" verification trigger and dual pre-patch crash dump vs post-patch clean memory execution panels.
 - **Action:** Authored Pytest test suite `backend/tests/test_sanitizer_harness.py` (`TEST-SAN-01`, `TEST-SAN-02`, `TEST-SAN-03`). Full backend suite of 30 tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 13 completed and verified.
+- **Result:** Phase 13 completed and verified (`3ff94e6`).
+
+### Phase 14: Functional & Exploit Regression Testing
+- **Action:** Created `backend/app/services/verification/regression_harness.py` implementing a 4-tier functional and adversarial test matrix:
+  1. `BENIGN_FUNCTIONAL`: Standard IoT sensor telemetry packet.
+  2. `BOUNDARY_LIMIT`: Maximum buffer boundary capacity byte test.
+  3. `MALICIOUS_EXPLOIT`: Adversarial buffer overflow exploit payload.
+  4. `NULL_FAULT_INJECTION`: NULL pointer and hardware exception fault simulation.
+- **Action:** Evaluated differential behavior ensuring benign/boundary inputs remain intact (0 regressions) while exploit payloads and NULL faults are safely neutralized without system crash.
+- **Action:** Added Pydantic schemas in `backend/app/schemas/verification.py` (`TestCaseResponse`, `RegressionSuiteResponse`) and REST endpoint `POST /api/v1/verification/regression/{patch_id}` in `backend/app/api/v1/verification.py`.
+- **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with dedicated "3. Run Regression Matrix" action and comprehensive test vector results table.
+- **Action:** Authored Pytest test suite `backend/tests/test_regression_harness.py` (`TEST-REG-01`, `TEST-REG-02`). All 32 backend tests passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 14 completed and verified.
 
 
 

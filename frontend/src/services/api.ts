@@ -423,6 +423,37 @@ export const runSanitizerVerification = async (patchId: string): Promise<DualSan
   return response.data.data;
 };
 
+export interface TestCaseData {
+  case_id: string;
+  case_name: string;
+  category: string;
+  input_vector: string;
+  expected_behavior: string;
+  pre_patch_passed: boolean;
+  pre_patch_behavior: string;
+  post_patch_passed: boolean;
+  post_patch_behavior: string;
+  regression_detected: boolean;
+  vulnerability_neutralized: boolean;
+}
+
+export interface RegressionSuiteData {
+  patch_id: string;
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
+  suite_passed: boolean;
+  status: string;
+  cases: TestCaseData[];
+  summary: string;
+}
+
+export const runRegressionSuite = async (patchId: string): Promise<RegressionSuiteData> => {
+  const response = await api.post<ApiResponse<RegressionSuiteData>>(`/verification/regression/${patchId}`);
+  return response.data.data;
+};
+
+
 
 
 

@@ -49,6 +49,31 @@ class DualSanitizerResponse(BaseModel):
     summary: str
 
 
+class TestCaseResponse(BaseModel):
+    case_id: str
+    case_name: str
+    category: str
+    input_vector: str
+    expected_behavior: str
+    pre_patch_passed: bool
+    pre_patch_behavior: str
+    post_patch_passed: bool
+    post_patch_behavior: str
+    regression_detected: bool
+    vulnerability_neutralized: bool
+
+
+class RegressionSuiteResponse(BaseModel):
+    patch_id: str
+    total_cases: int
+    passed_cases: int
+    failed_cases: int
+    suite_passed: bool
+    status: str
+    cases: List[TestCaseResponse]
+    summary: str
+
+
 class VerificationStatusResponse(BaseModel):
     id: str
     patch_id: str

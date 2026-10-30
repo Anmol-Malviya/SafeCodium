@@ -47,6 +47,10 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-SAN-02` | `pytest backend/tests/test_sanitizer_harness.py::test_sanitizer_harness_verifies_repaired_source` | Verify ASan & UBSan clean pass on defensive repaired C code | 0 | PASSED (0 errors, 0 undefined behaviors detected, exit code 0) |
 | `TEST-SAN-03` | `pytest backend/tests/test_sanitizer_harness.py::test_api_sanitizer_verification_endpoint` | Verify HTTP `/api/v1/verification/sanitizers/{patch_id}` | 0 | PASSED (HTTP 200, status VERIFIED, DB verification record updated) |
 | `TEST-FE-13` | `npm run build` | Verify frontend build with ASan/UBSan Verification Center UI | 0 | PASSED (2,138 modules transformed, dist built in 8.74s) |
+| `TEST-REG-01` | `pytest backend/tests/test_regression_harness.py::test_regression_suite_direct` | Direct 4-vector regression suite execution on C firmware | 0 | PASSED (4/4 tests passed, benign preserved, exploit neutralized) |
+| `TEST-REG-02` | `pytest backend/tests/test_regression_harness.py::test_api_regression_endpoint` | Verify HTTP `/api/v1/verification/regression/{patch_id}` | 0 | PASSED (HTTP 200, status VERIFIED, DB test suite passed=true) |
+| `TEST-FE-14` | `npm run build` | Verify frontend build with 4-Tier Regression Matrix UI | 0 | PASSED (2,138 modules transformed, dist built in 8.79s) |
+
 
 
 
