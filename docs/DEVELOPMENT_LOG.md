@@ -96,7 +96,15 @@
 - **Action:** Added endpoints in `backend/app/api/v1/patches.py` (`POST /api/v1/patches/generate`, `GET /api/v1/patches/{patch_id}`, `GET /api/v1/patches/vulnerability/{vuln_id}`, `GET /api/v1/patches/project/{project_id}`) and registered them in the API v1 router.
 - **Action:** Upgraded `frontend/src/pages/AiRepairStudio.tsx` with interactive vulnerability selection, provider toggle (Gemini, OpenAI, Ollama), live synthesis trigger, syntax-highlighted unified diff viewer, defensive checks inventory, and navigation to the Monaco code diff review.
 - **Action:** Created Pytest suite `backend/tests/test_patch_synthesizer.py` (`TEST-PAT-01`, `TEST-PAT-02`). All 21 tests across backend passing 100%. Verified clean frontend production build with 0 errors.
-- **Result:** Phase 10 completed and verified.
+- **Result:** Phase 10 completed and verified (`7d5d625`).
+
+### Phase 11: Independent Patch Reviewer & Controlled Application
+- **Action:** Created `backend/app/services/patching/review_engine.py` providing unified diff hunk parser, dry-run simulation engine, and strictly isolated patch application targeting shadow workspaces (`data/workspaces/{id}/shadow`) while preserving original uploads (`data/uploads/{id}/original`).
+- **Action:** Implemented automated IoT safety critique checking C syntax balance, explicit bounds verification, zero dynamic heap allocation in embedded code, and regression prevention.
+- **Action:** Added API endpoints in `backend/app/api/v1/patches.py` (`POST /api/v1/patches/{patch_id}/critique` and `POST /api/v1/patches/{patch_id}/apply` with dry-run support).
+- **Action:** Upgraded `frontend/src/pages/CodeDiffReview.tsx` with full Monaco Diff Editor (`@monaco-editor/react`), live independent critique verdict, hunk application telemetry, and controlled shadow write action.
+- **Action:** Authored Pytest test suite `backend/tests/test_patch_review.py` (`TEST-REV-01`, `TEST-REV-02`, `TEST-REV-03`). All 24 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 11 completed and verified.
 
 
 

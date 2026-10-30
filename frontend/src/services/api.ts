@@ -309,3 +309,42 @@ export const listProjectPatches = async (projectId: string): Promise<PatchData[]
   return response.data.data;
 };
 
+export interface PatchCritiqueData {
+  patch_id: string;
+  critique_passed: boolean;
+  critique_score: number;
+  semantic_integrity: string;
+  side_effects: string[];
+  c_syntax_valid: boolean;
+  bounds_safety: boolean;
+  zero_heap_allocation: boolean;
+  summary_verdict: string;
+}
+
+export interface PatchApplyData {
+  patch_id: string;
+  success: boolean;
+  is_dry_run: boolean;
+  target_file: string;
+  original_code: string;
+  patched_code: string;
+  hunks_applied: number;
+  hunks_total: number;
+  status: string;
+  diagnostics: string[];
+}
+
+export const critiquePatch = async (patchId: string): Promise<PatchCritiqueData> => {
+  const response = await api.post<ApiResponse<PatchCritiqueData>>(`/patches/${patchId}/critique`);
+  return response.data.data;
+};
+
+export const applyPatch = async (patchId: string, dryRun: boolean = false): Promise<PatchApplyData> => {
+  const response = await api.post<ApiResponse<PatchApplyData>>(`/patches/${patchId}/apply`, {
+    patch_id: patchId,
+    dry_run: dryRun,
+  });
+  return response.data.data;
+};
+
+

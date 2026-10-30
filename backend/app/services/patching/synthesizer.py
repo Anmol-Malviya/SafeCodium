@@ -85,3 +85,4 @@ class PatchSynthesizer:
 
         logger.info(f"Persisted synthesized patch {patch_record.id} for vulnerability {vuln.id}")
         return patch_record, ai_resp
+

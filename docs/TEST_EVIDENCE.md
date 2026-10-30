@@ -35,5 +35,10 @@ This document maintains ground-truth records of all test executions, compiler di
 | `TEST-PAT-01` | `pytest backend/tests/test_patch_synthesizer.py::test_patch_synthesizer_direct` | Direct patch synthesis service with unified diff and DB persistence | 0 | PASSED (valid unified diff generated, checks added, DB status GENERATED) |
 | `TEST-PAT-02` | `pytest backend/tests/test_patch_synthesizer.py::test_api_patch_generate_endpoint` | Verify HTTP route `/patches/generate` and query endpoints | 0 | PASSED (HTTP 200 with PatchDetailResponse payload and diff) |
 | `TEST-FE-10` | `npm run build` | Validate TypeScript compilation and Vite bundle with AiRepairStudio | 0 | PASSED (2,126 modules transformed, dist built in 8.40s) |
+| `TEST-REV-01` | `pytest backend/tests/test_patch_review.py::test_unified_diff_parsing_and_string_application` | Verify hunk parser and in-memory diff application | 0 | PASSED (clean replacement of vulnerable lines with defensive bounds) |
+| `TEST-REV-02` | `pytest backend/tests/test_patch_review.py::test_independent_patch_critique` | Verify independent critique heuristics (C syntax, zero-malloc, bounds) | 0 | PASSED (critique score >= 0.8, APPROVED verdict, zero heap allocation verified) |
+| `TEST-REV-03` | `pytest backend/tests/test_patch_review.py::test_api_patch_critique_and_apply` | Verify HTTP `/patches/{id}/critique` and `/patches/{id}/apply` | 0 | PASSED (dry-run preserves file, real apply modifies shadow file cleanly) |
+| `TEST-FE-11` | `npm run build` | Verify frontend compilation with Monaco Diff Editor and critique panel | 0 | PASSED (2,138 modules transformed, dist built in 8.78s) |
+
 
 
