@@ -142,7 +142,16 @@
 - **Action:** Enforced Rule 6 ground-truth verification promotion: When Compiler=0, ASan=0, Regression=100%, and Resource Profiling pass, promotes `Verification.final_status` and `Patch.status` to `VERIFIED`.
 - **Action:** Upgraded `frontend/src/pages/VerificationCenter.tsx` with "4. Profile & Finalize" trigger, Flash/RAM comparison cards, and verified badge banner.
 - **Action:** Authored Pytest test suite `backend/tests/test_resource_profiler.py` (`TEST-RES-01`, `TEST-RES-02`). All 34 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
-- **Result:** Phase 15 completed and verified.
+- **Result:** Phase 15 completed and verified (`99159a4`).
+
+### Phase 16: Cryptographic Security Assurance & Audit Reporting
+- **Action:** Created `backend/app/services/reporting/passport_generator.py` generating cryptographic JSON verification passports.
+- **Action:** Built tamper-evident SHA-256 chain of custody binding original source, repaired source, unified diff, sanitizer diagnostics, and root-of-trust composite passport signature.
+- **Action:** Implemented CVSS risk reduction calculator (e.g. CVSS 9.8 Critical neutralized to CVSS 0.0) and industry compliance mappings (MISRA C:2012 Rule 21.18, NIST SP 800-160, CWE Top 25).
+- **Action:** Added schemas in `backend/app/schemas/reporting.py` and REST endpoint `GET /api/v1/reports/passport/{patch_id}` in `backend/app/api/v1/reports.py`.
+- **Action:** Upgraded `frontend/src/pages/SecurityReports.tsx` with executive certificate view, SHA-256 copy actions, print-ready layout, and JSON passport download.
+- **Action:** Authored Pytest test suite `backend/tests/test_passport_reporting.py` (`TEST-REP-01`, `TEST-REP-02`). All 36 tests across backend passing 100%. Verified clean frontend production build (`npm run build`, 2,138 modules, 0 errors).
+- **Result:** Phase 16 completed and verified.
 
 
 

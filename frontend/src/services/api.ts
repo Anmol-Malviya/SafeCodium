@@ -480,6 +480,44 @@ export const runResourceProfiling = async (patchId: string): Promise<ResourcePro
   return response.data.data;
 };
 
+export interface CryptographicEvidenceHashesData {
+  original_source_sha256: string;
+  repaired_source_sha256: string;
+  unified_diff_sha256: string;
+  sanitizer_output_sha256: string;
+  passport_signature_sha256: string;
+}
+
+export interface VerificationPassportData {
+  passport_id: string;
+  project_id: string;
+  project_name: string;
+  vulnerability_id: string;
+  cwe_id: string;
+  cwe_name: string;
+  patch_id: string;
+  ai_provider: string;
+  model_name: string;
+  pre_patch_cvss_score: number;
+  post_patch_cvss_score: number;
+  cvss_risk_reduction: number;
+  final_status: string;
+  verification_date: string;
+  compiler_exit_code: number;
+  asan_exit_code: number;
+  test_suite_passed: boolean;
+  flash_delta_bytes: number;
+  cryptographic_hashes: CryptographicEvidenceHashesData;
+  defensive_idioms_applied: string[];
+  compliance_frameworks: string[];
+}
+
+export const getVerificationPassport = async (patchId: string): Promise<VerificationPassportData> => {
+  const response = await api.get<ApiResponse<VerificationPassportData>>(`/reports/passport/${patchId}`);
+  return response.data.data;
+};
+
+
 
 
 
