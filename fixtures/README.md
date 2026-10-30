@@ -7,3 +7,4 @@ Each fixture includes:
 - Known vulnerability manifestation (e.g. CWE-120 buffer overflow, CWE-476 NULL pointer).
 - Unit test harness executing normal, boundary, and exploit inputs.
 - Sanitizer verification targets.
+

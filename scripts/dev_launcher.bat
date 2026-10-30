@@ -16,3 +16,4 @@ if not exist "%~dp0..\.env" (
 echo [OK] Ready for Phase 2 implementation.
 echo ===============================================================================
 pause
+

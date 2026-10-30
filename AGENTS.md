@@ -62,3 +62,4 @@ For every phase:
 5. **Documentation** — Update `docs/PROJECT_STATUS.md`, `docs/DEVELOPMENT_LOG.md`, `docs/ARCHITECTURE.md`, `docs/TEST_EVIDENCE.md`.
 6. **Acceptance Report** — Present summary of changes, test outcomes, and criteria.
 7. **STOP & WAIT** — Await explicit user authorization before commencing the next phase.
+

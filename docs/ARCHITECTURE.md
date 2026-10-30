@@ -39,3 +39,4 @@ Safe Vibe AI is an IoT-aware autonomous vulnerability detection, repair, and ver
 1. **Zero Hallucinated Approvals:** A patch is only marked `VERIFIED` when clean compiler exit codes and clean sanitizer runs confirm vulnerability elimination with zero regression.
 2. **Original Source Immutability:** The uploaded project is strictly read-only in its original archive directory; all remediation operations occur on temporary shadow clones.
 3. **Zip-Slip Hardening:** All file paths inside uploaded archives are checked against path traversal (`..` components and absolute paths rejected).
+

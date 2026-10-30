@@ -22,3 +22,4 @@ UPLOAD -> ANALYZE -> DETECT -> UNDERSTAND -> REPAIR -> REVIEW -> VERIFY -> REPOR
 ## Getting Started
 
 Refer to `docs/ARCHITECTURE.md` and `docs/PROJECT_STATUS.md` for current system state and engineering milestones.
+
