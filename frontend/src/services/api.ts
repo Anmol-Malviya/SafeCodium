@@ -770,10 +770,16 @@ export const getProjectManifest = async (projectId: string): Promise<Record<stri
   return response.data.data;
 };
 
+export const getAuthToken = (): string => {
+  return localStorage.getItem('safecodium_token') || 'dev-session-analyst-token';
+};
+
 export const downloadRepairedProjectUrl = (projectId: string): string => {
-  return resolveBaseUrl() + '/projects/' + projectId + '/download/repaired';
+  const token = getAuthToken();
+  return resolveBaseUrl() + '/projects/' + projectId + '/download/repaired?token=' + encodeURIComponent(token);
 };
 
 export const downloadOriginalProjectUrl = (projectId: string): string => {
-  return resolveBaseUrl() + '/projects/' + projectId + '/download/original';
+  const token = getAuthToken();
+  return resolveBaseUrl() + '/projects/' + projectId + '/download/original?token=' + encodeURIComponent(token);
 };

@@ -127,8 +127,13 @@ async def get_current_user(
     request: Request,
     auth_header: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    token_query: Optional[str] = None,
+    api_key_query: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    query_params = request.query_params
+    q_token = query_params.get("token") or token_query
+    q_api_key = query_params.get("api_key") or api_key_query
     """
     Validates token or API key to authenticate caller.
     Applies least privilege and server-side authentication.
@@ -136,9 +141,11 @@ async def get_current_user(
     token = None
     if auth_header and auth_header.credentials:
         token = auth_header.credentials.strip()
+    elif q_token:
+        token = q_token.strip()
 
     # 1. API Key authentication via header
-    api_key_candidate = x_api_key or (token if token and token.startswith("sk_safe_") else None)
+    api_key_candidate = x_api_key or q_api_key or (token if token and token.startswith("sk_safe_") else None)
 
     # Check bootstrap / admin master API key if configured
     if settings.ADMIN_API_KEY and api_key_candidate and secrets.compare_digest(api_key_candidate, settings.ADMIN_API_KEY):
