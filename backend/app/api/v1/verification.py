@@ -420,7 +420,7 @@ async def get_verification_status(patch_id: str, db: AsyncSession = Depends(get_
     ver_res = await db.execute(select(Verification).where(Verification.patch_id == patch_id))
     verification = ver_res.scalar_one_or_none()
     if not verification:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verification record not found")
+        return ApiResponse(success=True, message="No verification executed yet", data=VerificationStatusResponse(patch_id=patch_id, pre_patch_compiler_exit=None, post_patch_compiler_exit=None, compiler_output=None, asan_exit_code=None, asan_output=None, ubsan_exit_code=None, ubsan_output=None, test_suite_passed=None, test_results_json={}, binary_size_delta_bytes=None, final_status="PENDING", verified_at=None))
 
     return ApiResponse(
         success=True,

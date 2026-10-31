@@ -246,6 +246,8 @@ export const CodeDiffReview: React.FC = () => {
 
         <div className="h-[480px] w-full">
           <DiffEditor
+            keepCurrentOriginalModel={true}
+            keepCurrentModifiedModel={true}
             height="100%"
             language="c"
             theme="light"

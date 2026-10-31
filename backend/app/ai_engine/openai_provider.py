@@ -32,6 +32,7 @@ class OpenAIProvider(BaseAiProvider):
         self.model_name = model_name or settings.OPENAI_MODEL
         self.is_primary = False
         self.api_key = api_key or settings.OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY", "")
+        self.base_url = (getattr(settings, "OPENAI_BASE_URL", None) or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         self.timeout = 30.0
 
     async def check_availability(self) -> ProviderStatus:
@@ -46,7 +47,7 @@ class OpenAIProvider(BaseAiProvider):
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 res = await client.get(
-                    "https://api.openai.com/v1/models",
+                    f"{self.base_url}/models",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                 )
                 if res.status_code == 200:
@@ -55,14 +56,14 @@ class OpenAIProvider(BaseAiProvider):
                         model_name=self.model_name,
                         is_available=True,
                         is_primary=self.is_primary,
-                        status_message=f"OpenAI API operational ({self.model_name}).",
+                        status_message=f"OpenAI-compatible API operational ({self.model_name}).",
                     )
                 return ProviderStatus(
                     provider_name=self.provider_name,
                     model_name=self.model_name,
                     is_available=False,
                     is_primary=self.is_primary,
-                    status_message=f"OpenAI API responded with HTTP {res.status_code}",
+                    status_message=f"OpenAI-compatible API responded with HTTP {res.status_code}",
                 )
         except Exception as e:
             return ProviderStatus(
@@ -96,7 +97,7 @@ class OpenAIProvider(BaseAiProvider):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
+                    f"{self.base_url}/chat/completions",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
@@ -160,7 +161,7 @@ class OpenAIProvider(BaseAiProvider):
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
+                    f"{self.base_url}/chat/completions",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",

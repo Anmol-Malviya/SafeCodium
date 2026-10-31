@@ -101,20 +101,20 @@ class ResourceProfileResponse(BaseModel):
 
 
 class VerificationStatusResponse(BaseModel):
-    id: str
+    id: Optional[str] = None
     patch_id: str
-    pre_patch_compiler_exit: int
-    post_patch_compiler_exit: int
-    asan_exit_code: int
+    pre_patch_compiler_exit: Optional[int] = None
+    post_patch_compiler_exit: Optional[int] = None
+    asan_exit_code: Optional[int] = None
     asan_output: Optional[str]
-    ubsan_exit_code: int
+    ubsan_exit_code: Optional[int] = None
     ubsan_output: Optional[str]
-    test_suite_passed: bool
+    test_suite_passed: Optional[bool] = None
     test_results_json: Optional[Dict[str, Any]]
-    binary_size_delta_bytes: int
-    final_status: str
-    created_at: datetime
-    updated_at: datetime
+    binary_size_delta_bytes: Optional[int] = None
+    final_status: str = "PENDING"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
