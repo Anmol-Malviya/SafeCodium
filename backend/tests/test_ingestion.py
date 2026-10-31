@@ -60,6 +60,26 @@ async def test_zip_slip_rejection(tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_decompression_ratio_rejection(tmp_path: Path):
+    """Verify that excessive compression ratios (decompression bomb defense) are rejected."""
+    dest = tmp_path / "bomb_target"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # Create repetitive data that compresses heavily
+        big_data = b"A" * 500000
+        z.writestr("huge_sparse.c", big_data)
+    buf.seek(0)
+
+    zip_path = tmp_path / "bomb.zip"
+    zip_path.write_bytes(buf.getvalue())
+
+    # If the ratio exceeds MAX_COMPRESSION_RATIO (100:1), safe_extract_zip will raise IngestionSecurityError
+    # We test with a controlled small sample or ensure extractor validates ratio
+    with pytest.raises(IngestionSecurityError, match="Suspicious compression ratio"):
+        safe_extract_zip(zip_path, dest)
+
+
+@pytest.mark.asyncio
 async def test_workspace_manager_sync_and_indexing(tmp_path: Path):
     """Verify shadow workspace cloning and C/C++ indexing."""
     orig = tmp_path / "orig"

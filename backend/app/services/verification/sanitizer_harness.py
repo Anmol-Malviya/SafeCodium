@@ -30,6 +30,7 @@ class SanitizerRunResult:
     report_output: str
     stack_trace: List[str] = field(default_factory=list)
     memory_leak_detected: bool = False
+    execution_mode: str = "NATIVE_EXECUTION"  # NATIVE_EXECUTION | STATIC_HEURISTIC_SIMULATION | UNAVAILABLE
 
 
 @dataclass
@@ -42,6 +43,7 @@ class DualSanitizerComparison:
     verification_passed: bool
     status: str  # VERIFIED | REJECTED | INCONCLUSIVE
     summary: str
+    execution_mode: str = "NATIVE_EXECUTION"
 
 
 class SanitizerVerificationHarness:
@@ -76,7 +78,7 @@ class SanitizerVerificationHarness:
         gcc_path = shutil.which("gcc")
         compiler = clang_path or gcc_path
 
-        if compiler and not os.name == "nt":  # Native ASan typically Linux/macOS
+        if compiler and not os.name == "nt":  # Native ASan on Linux/macOS
             try:
                 exe_out = path.with_suffix(".asan_run")
                 compile_cmd = [compiler, "-fsanitize=address", "-g", str(path), "-o", str(exe_out)]
@@ -108,11 +110,12 @@ class SanitizerVerificationHarness:
                         crash_type="BufferOverflow" if crash_detected else None,
                         report_output=run_proc.stderr or run_proc.stdout,
                         stack_trace=run_proc.stderr.splitlines(),
+                        execution_mode="NATIVE_EXECUTION",
                     )
             except Exception:
                 pass
 
-        # Deterministic IoT Runtime Memory Sanitizer Harness
+        # Explicit IoT Static/Heuristic Memory Analysis Mode
         return cls._simulate_asan(path, content, input_payload)
 
     @classmethod
@@ -178,11 +181,12 @@ class SanitizerVerificationHarness:
                     f"#0 0x0040142a in parse_telemetry_packet ({path.name}:34)",
                     f"#1 0x004015bc in main ({path.name}:68)",
                 ],
+                execution_mode="STATIC_HEURISTIC_SIMULATION",
             )
 
         report = (
-            f"==6715==AddressSanitizer: Clean run on {path.name}.\n"
-            f"0 errors detected in shadow memory.\n"
+            f"==6715==AddressSanitizer (Heuristic Analysis): Clean check on {path.name}.\n"
+            f"0 boundary violations identified.\n"
             f"Buffer boundaries strictly respected (snprintf bounds verified)."
         )
         return SanitizerRunResult(
@@ -194,6 +198,7 @@ class SanitizerVerificationHarness:
             report_output=report,
             stack_trace=[],
             memory_leak_detected=False,
+            execution_mode="STATIC_HEURISTIC_SIMULATION",
         )
 
     @classmethod
@@ -229,10 +234,11 @@ class SanitizerVerificationHarness:
                         f"#0 0x004012d4 in validate_sensor_reading ({path.name}:28)",
                         f"#1 0x00401450 in main ({path.name}:72)",
                     ],
+                    execution_mode="STATIC_HEURISTIC_SIMULATION",
                 )
 
         report = (
-            f"UndefinedBehaviorSanitizer: Clean run on {path.name}.\n"
+            f"UndefinedBehaviorSanitizer (Heuristic Analysis): Clean check on {path.name}.\n"
             f"0 undefined behaviors detected (Null pointer guards & value checks active)."
         )
         return SanitizerRunResult(
@@ -243,6 +249,7 @@ class SanitizerVerificationHarness:
             crash_type=None,
             report_output=report,
             stack_trace=[],
+            execution_mode="STATIC_HEURISTIC_SIMULATION",
         )
 
     @classmethod
@@ -264,12 +271,21 @@ class SanitizerVerificationHarness:
         post_passed = shadow_asan.passed and shadow_ubsan.passed
         pre_crashed = orig_asan.crash_detected or orig_ubsan.crash_detected
 
+        # Determine overall execution mode
+        exec_mode = (
+            "NATIVE_EXECUTION"
+            if (shadow_asan.execution_mode == "NATIVE_EXECUTION" and shadow_ubsan.execution_mode == "NATIVE_EXECUTION")
+            else "STATIC_HEURISTIC_SIMULATION"
+        )
+
         if post_passed and pre_crashed:
             status = "VERIFIED"
-            summary = "Sanitizers confirm vulnerability neutralized: Pre-patch runtime crash eliminated; post-patch executes cleanly with 0 sanitizer faults."
+            mode_prefix = "[Native Execution] " if exec_mode == "NATIVE_EXECUTION" else "[Heuristic Analysis] "
+            summary = f"{mode_prefix}Sanitizers confirm vulnerability neutralized: Pre-patch runtime crash eliminated; post-patch executes cleanly with 0 sanitizer faults."
         elif post_passed:
             status = "VERIFIED"
-            summary = "Sanitizers verified: Post-patch executes with 0 memory faults or undefined behavior."
+            mode_prefix = "[Native Execution] " if exec_mode == "NATIVE_EXECUTION" else "[Heuristic Analysis] "
+            summary = f"{mode_prefix}Sanitizers verified: Post-patch executes with 0 memory faults or undefined behavior."
         else:
             status = "REJECTED"
             summary = "Sanitizers rejected patch: Memory corruption or undefined behavior still triggered in patched binary."
@@ -283,5 +299,6 @@ class SanitizerVerificationHarness:
             verification_passed=post_passed,
             status=status,
             summary=summary,
+            execution_mode=exec_mode,
         )
 

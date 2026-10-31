@@ -170,12 +170,49 @@ class PatchReviewEngine:
         Applies a patch strictly to a shadow file workspace.
         Never touches original files.
         """
-        target_path = Path(shadow_workspace_path) / relative_file_path
+        shadow_base = Path(shadow_workspace_path).resolve()
+        target_path = (shadow_base / relative_file_path).resolve()
+
+        # Enforce strict path containment within shadow workspace
+        if not target_path.is_relative_to(shadow_base):
+            return PatchApplicationResult(
+                success=False,
+                is_dry_run=dry_run,
+                target_file=relative_file_path,
+                original_content="",
+                patched_content="",
+                hunks_applied=0,
+                hunks_total=0,
+                diagnostics=[f"Path traversal rejected: '{relative_file_path}' escapes shadow workspace."],
+            )
+
         if not target_path.exists():
-            # Try basename match if full relative path is nested
-            candidate = list(Path(shadow_workspace_path).glob(f"**/{Path(relative_file_path).name}"))
-            if candidate:
-                target_path = candidate[0]
+            # Disallow ambiguous multi-match globbing
+            candidates = [p for p in shadow_base.glob(f"**/{Path(relative_file_path).name}") if p.is_file()]
+            if len(candidates) == 1:
+                target_path = candidates[0].resolve()
+                if not target_path.is_relative_to(shadow_base):
+                    return PatchApplicationResult(
+                        success=False,
+                        is_dry_run=dry_run,
+                        target_file=relative_file_path,
+                        original_content="",
+                        patched_content="",
+                        hunks_applied=0,
+                        hunks_total=0,
+                        diagnostics=["Candidate escapes shadow boundary."],
+                    )
+            elif len(candidates) > 1:
+                return PatchApplicationResult(
+                    success=False,
+                    is_dry_run=dry_run,
+                    target_file=relative_file_path,
+                    original_content="",
+                    patched_content="",
+                    hunks_applied=0,
+                    hunks_total=0,
+                    diagnostics=[f"Ambiguous target filename '{Path(relative_file_path).name}' matched {len(candidates)} files. Explicit relative path required."],
+                )
             else:
                 return PatchApplicationResult(
                     success=False,

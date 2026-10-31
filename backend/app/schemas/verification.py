@@ -15,6 +15,7 @@ class CompileResultResponse(BaseModel):
     warnings_count: int
     errors_count: int
     diagnostics: List[str]
+    execution_mode: str = "NATIVE_EXECUTION"  # NATIVE_EXECUTION | STATIC_HEURISTIC_SIMULATION | UNAVAILABLE
 
 
 class DualCompileResponse(BaseModel):
@@ -25,6 +26,7 @@ class DualCompileResponse(BaseModel):
     compilation_passed: bool
     status: str
     delta_summary: str
+    execution_mode: str = "NATIVE_EXECUTION"
 
 
 class SanitizerRunResponse(BaseModel):
@@ -36,6 +38,7 @@ class SanitizerRunResponse(BaseModel):
     report_output: str
     stack_trace: List[str]
     memory_leak_detected: bool = False
+    execution_mode: str = "NATIVE_EXECUTION"  # NATIVE_EXECUTION | STATIC_HEURISTIC_SIMULATION | UNAVAILABLE
 
 
 class DualSanitizerResponse(BaseModel):
@@ -47,6 +50,7 @@ class DualSanitizerResponse(BaseModel):
     verification_passed: bool
     status: str
     summary: str
+    execution_mode: str = "NATIVE_EXECUTION"
 
 
 class TestCaseResponse(BaseModel):

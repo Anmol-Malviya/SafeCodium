@@ -111,10 +111,12 @@ async def trigger_dual_compilation(patch_id: str, db: AsyncSession = Depends(get
                 warnings_count=comparison.post_patch.warnings_count,
                 errors_count=comparison.post_patch.errors_count,
                 diagnostics=comparison.post_patch.diagnostics,
+                execution_mode=comparison.post_patch.execution_mode,
             ),
             compilation_passed=comparison.compilation_passed,
             status=comparison.status,
             delta_summary=comparison.delta_summary,
+            execution_mode=comparison.execution_mode,
         ),
     )
 
@@ -189,6 +191,7 @@ async def trigger_sanitizer_verification(patch_id: str, db: AsyncSession = Depen
             report_output=res.report_output,
             stack_trace=res.stack_trace,
             memory_leak_detected=res.memory_leak_detected,
+            execution_mode=res.execution_mode,
         )
 
     return ApiResponse(
@@ -203,6 +206,7 @@ async def trigger_sanitizer_verification(patch_id: str, db: AsyncSession = Depen
             verification_passed=san_comp.verification_passed,
             status=san_comp.status,
             summary=san_comp.summary,
+            execution_mode=san_comp.execution_mode,
         ),
     )
 

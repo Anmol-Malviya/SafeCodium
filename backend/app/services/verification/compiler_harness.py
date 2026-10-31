@@ -27,6 +27,7 @@ class CompileResult:
     warnings_count: int
     errors_count: int
     diagnostics: List[str] = field(default_factory=list)
+    execution_mode: str = "NATIVE_EXECUTION"  # NATIVE_EXECUTION | STATIC_HEURISTIC_SIMULATION | UNAVAILABLE
 
 
 @dataclass
@@ -38,6 +39,7 @@ class DualCompileComparison:
     compilation_passed: bool
     status: str  # PASSED | FAILED | WARNING_NEW | INCONCLUSIVE
     delta_summary: str
+    execution_mode: str = "NATIVE_EXECUTION"
 
 
 class DualCompilerHarness:
@@ -119,6 +121,7 @@ class DualCompilerHarness:
                     warnings_count=warnings_count,
                     errors_count=errors_count,
                     diagnostics=stderr.splitlines(),
+                    execution_mode="NATIVE_EXECUTION",
                 )
             except Exception as e:
                 # If native compiler run fails unexpectedly, fallback to simulation harness
@@ -196,6 +199,7 @@ class DualCompilerHarness:
             warnings_count=warnings_count,
             errors_count=errors_count,
             diagnostics=diagnostics,
+            execution_mode="STATIC_HEURISTIC_SIMULATION",
         )
 
     @classmethod
@@ -225,6 +229,12 @@ class DualCompilerHarness:
             status = "FAILED"
             delta_summary = f"Post-patch compilation failed with {post_res.errors_count} errors and {post_res.warnings_count} warnings."
 
+        exec_mode = (
+            "NATIVE_EXECUTION"
+            if (pre_res.execution_mode == "NATIVE_EXECUTION" and post_res.execution_mode == "NATIVE_EXECUTION")
+            else "STATIC_HEURISTIC_SIMULATION"
+        )
+
         return DualCompileComparison(
             patch_id=patch_id,
             compiler_name=compiler_name,
@@ -233,5 +243,6 @@ class DualCompilerHarness:
             compilation_passed=post_res.success,
             status=status,
             delta_summary=delta_summary,
+            execution_mode=exec_mode,
         )
 

@@ -538,8 +538,17 @@ export interface RecentActivityItemData {
   status: string;
 }
 
+export interface DistributionItemData {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
 export interface FullPipelineDashboardData {
   kpis: PipelineKpisData;
+  severity_distribution: DistributionItemData[];
+  top_cwe_distribution: DistributionItemData[];
+  project_types_distribution: DistributionItemData[];
   recent_activity: RecentActivityItemData[];
 }
 

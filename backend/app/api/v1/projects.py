@@ -1,5 +1,6 @@
-"""Safe Vibe AI — Projects & Ingestion API Endpoints."""
+"""Safe Vibe AI / SafeCodium — Projects & Ingestion API Endpoints."""
 
+import secrets
 import shutil
 import uuid
 from pathlib import Path
@@ -12,10 +13,12 @@ from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.models.project import Project
 from backend.app.schemas.common import ApiResponse, ProjectResponse
-from backend.app.services.ingestion.extractor import safe_extract_zip, IngestionSecurityError
+from backend.app.services.ingestion.extractor import safe_extract_zip, IngestionSecurityError, MAX_UNCOMPRESSED_SIZE_BYTES
 from backend.app.services.ingestion.workspace import WorkspaceManager
 
 router = APIRouter(prefix="/projects", tags=["Project Ingestion"])
+
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB max request size
 
 
 @router.post("/upload", response_model=ApiResponse[ProjectResponse], status_code=status.HTTP_201_CREATED)
@@ -26,31 +29,44 @@ async def upload_project(
 ):
     """
     Ingests a C/C++ firmware archive (.zip) or single source file.
-    Applies Zip-Slip protection, provisions shadow workspace, and indexes source files.
+    Applies Zip-Slip protection, symlink rejection, provisions shadow workspace,
+    enforces read-only permissions on original, and indexes source files.
     """
     project_id = str(uuid.uuid4())
     project_name = name or Path(file.filename or "firmware_project").stem
     original_dir, shadow_dir = WorkspaceManager.setup_project_workspace(project_id)
 
-    filename = file.filename or "upload"
-    file_ext = Path(filename).suffix.lower()
+    raw_filename = Path(file.filename or "upload").name
+    file_ext = Path(raw_filename).suffix.lower()
+
+    # Use cryptographically random server-side temporary file
+    random_token = secrets.token_hex(8)
+    temp_upload_path = settings.DATA_DIR / f"temp_{random_token}_{raw_filename}"
 
     try:
-        if file_ext == ".zip":
-            # Save temporary zip file
-            temp_zip_path = original_dir.parent / f"temp_{file.filename}"
-            with open(temp_zip_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+        # Stream upload with size enforcement
+        bytes_read = 0
+        with open(temp_upload_path, "wb") as buffer:
+            while chunk := await file.read(65536):
+                bytes_read += len(chunk)
+                if bytes_read > MAX_UPLOAD_SIZE:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Uploaded file exceeds maximum allowed size of 100MB."
+                    )
+                buffer.write(chunk)
 
-            # Safely extract with Zip-Slip defense
-            safe_extract_zip(temp_zip_path, original_dir)
-            temp_zip_path.unlink(missing_ok=True)
+        if file_ext == ".zip":
+            # Safely extract with Zip-Slip defense and symlink rejection
+            safe_extract_zip(temp_upload_path, original_dir)
             source_type = "zip"
 
         elif file_ext in {".c", ".cpp", ".cc", ".cxx", ".h", ".hpp"}:
-            dest_file = original_dir / filename
-            with open(dest_file, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+            dest_file = (original_dir / raw_filename).resolve()
+            if not dest_file.is_relative_to(original_dir.resolve()):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid destination path")
+
+            shutil.copyfile(temp_upload_path, dest_file)
             source_type = "single_file"
 
         else:
@@ -62,6 +78,9 @@ async def upload_project(
         # Clone original to shadow workspace for patch experimentation
         WorkspaceManager.sync_to_shadow(original_dir, shadow_dir)
 
+        # Protect original workspace files (mark as read-only at OS level)
+        WorkspaceManager.protect_original_workspace(original_dir)
+
         # Detect framework and index files
         framework_type = WorkspaceManager.detect_framework_type(original_dir)
         indexed_files = WorkspaceManager.index_source_files(original_dir)
@@ -70,14 +89,13 @@ async def upload_project(
         project = Project(
             id=project_id,
             name=project_name,
-            description=f"Ingested {source_type} ({filename})",
+            description=f"Ingested {source_type} ({raw_filename})",
             framework_type=framework_type,
             source_type=source_type,
             original_path=str(original_dir),
             shadow_path=str(shadow_dir),
             file_count=len(indexed_files),
         )
-
         db.add(project)
         await db.commit()
         await db.refresh(project)
@@ -89,19 +107,29 @@ async def upload_project(
         )
 
     except IngestionSecurityError as sec_err:
+        WorkspaceManager.unprotect_original_workspace(original_dir)
         shutil.rmtree(original_dir.parent, ignore_errors=True)
         shutil.rmtree(shadow_dir.parent, ignore_errors=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Security Validation Failed: {str(sec_err)}",
         )
+    except HTTPException:
+        WorkspaceManager.unprotect_original_workspace(original_dir)
+        shutil.rmtree(original_dir.parent, ignore_errors=True)
+        shutil.rmtree(shadow_dir.parent, ignore_errors=True)
+        raise
     except Exception as e:
+        WorkspaceManager.unprotect_original_workspace(original_dir)
         shutil.rmtree(original_dir.parent, ignore_errors=True)
         shutil.rmtree(shadow_dir.parent, ignore_errors=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to ingest project: {str(e)}",
         )
+    finally:
+        # Always remove temporary upload artifact
+        temp_upload_path.unlink(missing_ok=True)
 
 
 @router.get("", response_model=ApiResponse[List[ProjectResponse]])
@@ -182,4 +210,3 @@ async def get_file_content(
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to read file: {e}")
-

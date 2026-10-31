@@ -1,4 +1,4 @@
-"""Safe Vibe AI — Workspace Manager & Shadow Cloner."""
+"""Safe Vibe AI / SafeCodium — Workspace Manager & Shadow Cloner."""
 
 import os
 import shutil
@@ -29,11 +29,49 @@ class WorkspaceManager:
         return original_dir, shadow_dir
 
     @staticmethod
+    def protect_original_workspace(original_dir: Path) -> None:
+        """
+        Enforces read-only permissions on original source files.
+        Guarantees that original firmware cannot be modified during patching or testing.
+        """
+        for root, dirs, files in os.walk(original_dir):
+            for file in files:
+                file_path = Path(root) / file
+                try:
+                    # Remove write permission (make read-only)
+                    mode = file_path.stat().st_mode
+                    file_path.chmod(mode & ~stat.S_IWRITE)
+                except Exception:
+                    pass
+
+    @staticmethod
+    def unprotect_original_workspace(original_dir: Path) -> None:
+        """Restores write permissions if directory cleanup or deletion is needed."""
+        for root, dirs, files in os.walk(original_dir):
+            for file in files:
+                file_path = Path(root) / file
+                try:
+                    mode = file_path.stat().st_mode
+                    file_path.chmod(mode | stat.S_IWRITE)
+                except Exception:
+                    pass
+
+    @staticmethod
     def sync_to_shadow(original_dir: Path, shadow_dir: Path) -> None:
-        """Copies all files from original_dir to shadow_dir with fresh permissions."""
+        """Copies all files from original_dir to shadow_dir with fresh writable permissions."""
         if shadow_dir.exists():
             shutil.rmtree(shadow_dir, ignore_errors=True)
         shutil.copytree(original_dir, shadow_dir, dirs_exist_ok=True)
+
+        # Ensure shadow copy files are explicitly writable
+        for root, _, files in os.walk(shadow_dir):
+            for file in files:
+                file_path = Path(root) / file
+                try:
+                    mode = file_path.stat().st_mode
+                    file_path.chmod(mode | stat.S_IWRITE)
+                except Exception:
+                    pass
 
     @staticmethod
     def detect_framework_type(root_dir: Path) -> str:
@@ -75,4 +113,3 @@ class WorkspaceManager:
                     except Exception:
                         pass
         return indexed_files
-
