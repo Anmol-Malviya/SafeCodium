@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Moon, Sun, Shield, Activity, AlertCircle, Cpu, HardDrive } from 'lucide-react';
+import { Search, Bell, Moon, Sun, Shield, Activity, AlertCircle } from 'lucide-react';
 import { getSystemHealth, SystemHealthData } from '../../services/api';
 
 export const Navbar: React.FC = () => {
@@ -56,17 +56,6 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50/80 border border-emerald-200/80 text-emerald-700 text-xs font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Engine Online</span>
-          </div>
-        )}
-
-        {/* Hardware Telemetry Badge (VRAM / RAM) */}
-        {health && health.gpu_detected && (
-          <div className="hidden lg:flex items-center space-x-2 text-xs text-slate-500 font-mono bg-slate-50 px-3 py-1 rounded-lg border border-slate-200/60">
-            <Cpu className="w-3.5 h-3.5 text-blue-500" />
-            <span>RTX 3050</span>
-            <span className="text-slate-300">|</span>
-            <HardDrive className="w-3.5 h-3.5 text-slate-400" />
-            <span>{Math.round(health.total_ram_gb - health.free_ram_gb)}G / {Math.round(health.total_ram_gb)}G</span>
           </div>
         )}
 

@@ -61,3 +61,4 @@ All identified vulnerabilities and design deviations have been addressed:
 
 - **Elimination of Mock Metrics:** In `frontend/src/pages/Dashboard.tsx`, static fallback figures (e.g., `24/86/68/62`) and artificial percentage boosts (`+12%`, `+18%`) were completely replaced with dynamic counters backed by `backend/app/api/v1/analytics.py`.
 - **Database-Driven Visualizations:** Severity distribution, Top CWE findings, and Project Types charts render dynamically from SQLite database aggregations. Empty workspace states render informational empty placeholders rather than fabricated graphs.
+

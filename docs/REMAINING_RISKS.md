@@ -39,3 +39,4 @@
 ### 4.1 Encrypted / Password-Protected ZIPs
 - **Policy:** Encrypted ZIP files are rejected by the extraction engine because source inspection cannot occur prior to decompression.
 - **Non-C/C++ Files:** Firmware projects containing binary blobs, pre-compiled `.bin` files, or non-source assets have those files ignored; SafeCodium's security scanners only index and audit `.c`, `.cpp`, `.h`, and `.hpp` source files.
+
