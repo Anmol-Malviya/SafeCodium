@@ -212,6 +212,18 @@ export const getProjectFiles = async (projectId: string): Promise<SourceFileData
   return response.data.data;
 };
 
+export const getProjectFileContent = async (
+  projectId: string,
+  path: string,
+  workspace: string = 'original'
+): Promise<{ path: string; content: string; workspace?: string }> => {
+  const response = await api.get<ApiResponse<{ path: string; content: string; workspace?: string }>>(
+    `/projects/${projectId}/file-content`,
+    { params: { path, workspace } }
+  );
+  return response.data.data;
+};
+
 export const getVulnerabilityDetails = async (vulnId: string): Promise<EnrichedVulnerabilityData> => {
   const response = await api.get<ApiResponse<EnrichedVulnerabilityData>>(`/vulnerabilities/${vulnId}`);
   return response.data.data;

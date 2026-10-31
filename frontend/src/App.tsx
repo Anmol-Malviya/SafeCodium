@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProjectProvider } from './context/ProjectContext';
 import { MainLayout } from './components/layout/MainLayout';
+import { VsCodeStudio } from './pages/VsCodeStudio';
 import { Dashboard } from './pages/Dashboard';
 import { AutoPipeline } from './pages/AutoPipeline';
 import { ProjectUpload } from './pages/ProjectUpload';
@@ -21,8 +22,11 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MainLayout />}>
+            {/* Primary Simplest VS Code Experience */}
+            <Route index element={<VsCodeStudio />} />
+            <Route path="studio" element={<VsCodeStudio />} />
+
             {/* Step 1: Ingest Firmware */}
-            <Route index element={<Navigate to="/upload" replace />} />
             <Route path="upload" element={<ProjectUpload />} />
             
             {/* Autonomous Orchestrator */}
@@ -49,7 +53,7 @@ export const App: React.FC = () => {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="history" element={<ProjectHistory />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/upload" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

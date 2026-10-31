@@ -203,11 +203,12 @@ async def get_project_files(
 async def get_file_content(
     project_id: str,
     path: str,
+    workspace: Optional[str] = "original",
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Reads the content of a specific source file safely.
+    Reads the content of a specific source file safely from original or shadow workspace.
     Path traversal is strictly prevented and user authorization is enforced.
     """
     result = await db.execute(select(Project).where(Project.id == project_id))
@@ -217,11 +218,16 @@ async def get_file_content(
 
     verify_project_access(project, current_user)
 
-    original_dir = Path(project.original_path).resolve()
-    target_path = (original_dir / path).resolve()
+    base_dir = Path(project.shadow_path if workspace == "shadow" and project.shadow_path else project.original_path).resolve()
+    target_path = (base_dir / path).resolve()
 
-    if not target_path.is_relative_to(original_dir) or not target_path.exists() or not target_path.is_file():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or unauthorized file path")
+    if not target_path.is_relative_to(base_dir) or not target_path.exists() or not target_path.is_file():
+        # Fallback search if path is relative to repo root
+        candidates = list(base_dir.glob(f"**/{Path(path).name}"))
+        if candidates and candidates[0].is_file():
+            target_path = candidates[0]
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or unauthorized file path")
 
     try:
         with open(target_path, "r", encoding="utf-8", errors="replace") as f:
@@ -229,7 +235,7 @@ async def get_file_content(
         return ApiResponse(
             success=True,
             message="File content loaded",
-            data={"path": path, "content": content},
+            data={"path": path, "content": content, "workspace": workspace},
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to read file: {e}")

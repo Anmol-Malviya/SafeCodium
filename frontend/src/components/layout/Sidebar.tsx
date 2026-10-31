@@ -22,7 +22,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'VS Code Studio', path: '/', icon: FileCode2 },
+  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Auto Pipeline', path: '/pipeline', icon: Play },
   { name: 'Project Upload', path: '/upload', icon: Upload },
   { name: 'Code Analysis', path: '/analysis', icon: FileCode2 },
