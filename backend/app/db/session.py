@@ -21,7 +21,10 @@ def get_engine_args(database_url: str) -> dict:
     """Returns database dialect-specific engine parameters."""
     if database_url.startswith("sqlite+aiosqlite"):
         return {
-            "connect_args": {"check_same_thread": False},
+            "connect_args": {
+                "check_same_thread": False,
+                "timeout": 30.0,
+            },
             "echo": False,
         }
     elif database_url.startswith("postgresql+asyncpg"):
