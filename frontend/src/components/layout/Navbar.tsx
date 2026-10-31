@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Cpu, HardDrive, Activity, AlertCircle } from 'lucide-react';
+import { Search, Bell, Moon, Sun, Shield, Activity, AlertCircle, Cpu, HardDrive } from 'lucide-react';
 import { getSystemHealth, SystemHealthData } from '../../services/api';
 
 export const Navbar: React.FC = () => {
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [error, setError] = useState<boolean>(false);
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchHealth = async () => {
@@ -23,68 +24,73 @@ export const Navbar: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-16 border-b border-cyber-border bg-[#0a0f1d] px-6 flex items-center justify-between sticky top-0 z-40">
-      {/* Brand & Subtitle */}
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
-          <ShieldCheck className="w-6 h-6 text-cyan-400" />
-        </div>
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="font-bold tracking-wider text-white text-base">SAFE VIBE AI</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono tracking-widest bg-cyan-950 text-cyan-400 border border-cyan-800">
-              v0.1.0-DEV
-            </span>
+    <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+      {/* Global Search Bar */}
+      <div className="flex-1 max-w-md">
+        <div className={`relative flex items-center transition-all ${isSearchFocused ? 'ring-2 ring-blue-500/20' : ''}`}>
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search projects, files, vulnerabilities..."
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            className="w-full pl-10 pr-20 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-400 transition-all"
+          />
+          <div className="absolute right-2.5 flex items-center space-x-1">
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white border border-slate-200 rounded shadow-xs">
+              Ctrl + K
+            </kbd>
           </div>
-          <p className="text-xs text-slate-400 font-mono">
-            Autonomous Vulnerability Detection, Repair & Verification
-          </p>
         </div>
       </div>
 
-      {/* Live System Diagnostics Pill */}
+      {/* Right Controls & Telemetry */}
       <div className="flex items-center space-x-4">
+        {/* Live Engine Status Pill */}
         {error ? (
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono">
-            <AlertCircle className="w-4 h-4 animate-pulse" />
-            <span>Backend Disconnected</span>
-          </div>
-        ) : health ? (
-          <div className="flex items-center space-x-3 font-mono text-xs">
-            {/* Engine Status */}
-            <div className="flex items-center space-x-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <Activity className="w-3.5 h-3.5" />
-              <span>ENGINE ONLINE</span>
-            </div>
-
-            {/* GPU / VRAM */}
-            {health.gpu_detected && (
-              <div className="flex items-center space-x-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-cyan-300">
-                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                <span>
-                  RTX 3050 ({(health.vram_total_mb && health.vram_free_mb)
-                    ? `${health.vram_total_mb - health.vram_free_mb}MB`
-                    : '6GB'})
-                </span>
-              </div>
-            )}
-
-            {/* RAM */}
-            <div className="flex items-center space-x-1.5 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
-              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
-              <span>
-                {Math.round(health.total_ram_gb - health.free_ram_gb)}G / {Math.round(health.total_ram_gb)}G RAM
-              </span>
-            </div>
+          <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-600 text-xs font-medium">
+            <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+            <span>Engine Offline</span>
           </div>
         ) : (
-          <div className="text-xs font-mono text-slate-500 animate-pulse">
-            Connecting telemetry...
+          <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50/80 border border-emerald-200/80 text-emerald-700 text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Engine Online</span>
           </div>
         )}
+
+        {/* Hardware Telemetry Badge (VRAM / RAM) */}
+        {health && health.gpu_detected && (
+          <div className="hidden lg:flex items-center space-x-2 text-xs text-slate-500 font-mono bg-slate-50 px-3 py-1 rounded-lg border border-slate-200/60">
+            <Cpu className="w-3.5 h-3.5 text-blue-500" />
+            <span>RTX 3050</span>
+            <span className="text-slate-300">|</span>
+            <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+            <span>{Math.round(health.total_ram_gb - health.free_ram_gb)}G / {Math.round(health.total_ram_gb)}G</span>
+          </div>
+        )}
+
+        {/* Notification Bell */}
+        <button className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors relative">
+          <Bell className="w-4 h-4" />
+          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full absolute top-2 right-2 ring-2 ring-white" />
+        </button>
+
+        {/* Theme Icon */}
+        <button className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+          <Moon className="w-4 h-4" />
+        </button>
+
+        {/* User / Org Avatar Pill */}
+        <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
+          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+            SA
+          </div>
+          <span className="hidden sm:inline-block text-xs font-semibold text-slate-700">
+            Safe Vibe AI
+          </span>
+        </div>
       </div>
     </header>
   );
 };
-

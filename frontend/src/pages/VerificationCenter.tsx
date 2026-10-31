@@ -81,7 +81,6 @@ export const VerificationCenter: React.FC = () => {
       setSelectedPatchId('');
       return;
     }
-
     const loadPatches = async () => {
       try {
         const res = await listProjectPatches(selectedProjectId);
@@ -97,13 +96,13 @@ export const VerificationCenter: React.FC = () => {
           setVerificationRecord(null);
         }
       } catch (err) {
-        setPatches([]);
+        console.error('Failed to load patches', err);
       }
     };
     loadPatches();
   }, [selectedProjectId]);
 
-  // When patch changes, load existing verification record
+  // When patch changes, load existing verification status
   useEffect(() => {
     if (!selectedPatchId) {
       setDualCompileResult(null);
@@ -116,42 +115,42 @@ export const VerificationCenter: React.FC = () => {
 
     const loadStatus = async () => {
       try {
-        const ver = await getVerificationStatus(selectedPatchId);
-        setVerificationRecord(ver);
+        const status = await getVerificationStatus(selectedPatchId);
+        setVerificationRecord(status);
       } catch (err) {
-        setVerificationRecord(null);
+        // Record might not exist yet
       }
     };
     loadStatus();
   }, [selectedPatchId]);
 
-  const handleRunDualCompilation = async () => {
+  const handleRunCompile = async () => {
     if (!selectedPatchId) return;
     setIsCompiling(true);
     setErrorMsg(null);
     try {
       const res = await runDualCompilation(selectedPatchId);
       setDualCompileResult(res);
-      const ver = await getVerificationStatus(selectedPatchId);
-      setVerificationRecord(ver);
+      const status = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(status);
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || 'Compilation verification failed.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Compilation harness failed.');
     } finally {
       setIsCompiling(false);
     }
   };
 
-  const handleRunSanitizers = async () => {
+  const handleRunSanitizer = async () => {
     if (!selectedPatchId) return;
     setIsSanitizing(true);
     setErrorMsg(null);
     try {
       const res = await runSanitizerVerification(selectedPatchId);
       setSanitizerResult(res);
-      const ver = await getVerificationStatus(selectedPatchId);
-      setVerificationRecord(ver);
+      const status = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(status);
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || 'Sanitizer verification failed.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Sanitizer execution failed.');
     } finally {
       setIsSanitizing(false);
     }
@@ -164,57 +163,49 @@ export const VerificationCenter: React.FC = () => {
     try {
       const res = await runRegressionSuite(selectedPatchId);
       setRegressionResult(res);
-      const ver = await getVerificationStatus(selectedPatchId);
-      setVerificationRecord(ver);
+      const status = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(status);
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || 'Regression suite failed.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Regression suite failed.');
     } finally {
       setIsRegressing(false);
     }
   };
 
-  const handleRunResourceProfiling = async () => {
+  const handleRunProfiling = async () => {
     if (!selectedPatchId) return;
     setIsProfiling(true);
     setErrorMsg(null);
     try {
       const res = await runResourceProfiling(selectedPatchId);
       setResourceResult(res);
-      const ver = await getVerificationStatus(selectedPatchId);
-      setVerificationRecord(ver);
+      const status = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(status);
     } catch (err: any) {
-      setErrorMsg(err?.response?.data?.detail || 'Resource profiling failed.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Resource profiling failed.');
     } finally {
       setIsProfiling(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <Terminal className="w-6 h-6 text-cyan-400" />
-            <h1 className="text-xl font-bold text-white tracking-tight">Firmware Verification Center</h1>
-            <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-cyan-950/60 text-cyan-400 border border-cyan-800/50">
-              Phase 15 Resource Profiler
-            </span>
-          </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Complete ground-truth verification pipeline: Compiler, Sanitizers (ASan/UBSan), Regression, and Footprint Profiler.
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Deterministic Verification Center</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Deterministic Ground-Truth Oracle (Rule 6): Dual compilation, ASan/UBSan runtimes, 4-tier functional regression, and binary footprint profiling.
           </p>
         </div>
 
-        {/* Global Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Project Selector */}
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium text-slate-400">Project:</span>
+        {/* Project & Patch Selectors */}
+        <div className="flex items-center space-x-3">
+          {projects.length > 0 && (
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-cyan-500"
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -222,282 +213,192 @@ export const VerificationCenter: React.FC = () => {
                 </option>
               ))}
             </select>
-          </div>
+          )}
 
-          {/* Patch Selector */}
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-medium text-slate-400">Target Patch:</span>
+          {patches.length > 0 && (
             <select
               value={selectedPatchId}
               onChange={(e) => setSelectedPatchId(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs font-mono focus:outline-none focus:border-cyan-500"
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs"
             >
-              {patches.length === 0 ? (
-                <option value="">No patches available</option>
-              ) : (
-                patches.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.id.substring(0, 8)}... ({p.ai_provider.toUpperCase()} - {p.status})
-                  </option>
-                ))
-              )}
+              {patches.map((p) => (
+                <option key={p.id} value={p.id}>
+                  Patch {p.id.substring(0, 8)} ({p.repair_strategy})
+                </option>
+              ))}
             </select>
-          </div>
-
-          {/* Stage Action Triggers */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleRunDualCompilation}
-              disabled={!selectedPatchId || isCompiling}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center space-x-1 transition-all disabled:opacity-50"
-            >
-              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-              <span>1. Compile</span>
-            </button>
-
-            <button
-              onClick={handleRunSanitizers}
-              disabled={!selectedPatchId || isSanitizing}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center space-x-1 transition-all disabled:opacity-50"
-            >
-              <Zap className="w-3.5 h-3.5 text-yellow-400" />
-              <span>2. Sanitizers</span>
-            </button>
-
-            <button
-              onClick={handleRunRegression}
-              disabled={!selectedPatchId || isRegressing}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-medium flex items-center space-x-1 transition-all disabled:opacity-50"
-            >
-              <Layers className="w-3.5 h-3.5 text-purple-400" />
-              <span>3. Regression</span>
-            </button>
-
-            <button
-              onClick={handleRunResourceProfiling}
-              disabled={!selectedPatchId || isProfiling}
-              className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold flex items-center space-x-1.5 shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <Cpu className="w-3.5 h-3.5 fill-current" />
-              <span>{isProfiling ? 'Profiling...' : '4. Profile & Finalize'}</span>
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800 text-rose-300 text-xs flex items-center space-x-2">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 font-medium">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {/* Verification Status Banner */}
-      {verificationRecord && verificationRecord.final_status === 'VERIFIED' ? (
-        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/80 flex items-center justify-between text-xs font-mono">
-          <div className="flex items-center space-x-3">
-            <Award className="w-6 h-6 text-emerald-400 shrink-0" />
-            <div>
-              <div className="text-sm font-bold text-emerald-300">
-                OFFICIALLY VERIFIED FIRMWARE ARTIFACT
-              </div>
-              <span className="text-slate-300 text-[11px]">
-                Deterministic Proof: Compiler Exit Code 0, Zero ASan/UBSan Crashes, 100% Regression Suite Pass, and Safe Memory Footprint (+{verificationRecord.binary_size_delta_bytes} bytes).
-              </span>
-            </div>
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              GROUND-TRUTH VERIFICATION VERDICT
+            </span>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                verificationRecord?.final_status === 'VERIFIED'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : verificationRecord?.final_status === 'REJECTED'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}
+            >
+              {verificationRecord ? verificationRecord.final_status : 'INCONCLUSIVE'}
+            </span>
           </div>
+          <p className="text-xs text-slate-500">
+            {verificationRecord?.final_status === 'VERIFIED'
+              ? 'All 4 verification gates certified exit-code 0, 0 runtime crashes, and resource budget compliance.'
+              : 'Execute the 4 deterministic verification stages below to certify the patch.'}
+          </p>
+        </div>
+
+        {verificationRecord?.final_status === 'VERIFIED' && (
           <button
-            onClick={() => navigate('/security-reports')}
-            className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold flex items-center space-x-1.5 shadow-md shadow-emerald-900/30"
+            onClick={() => navigate('/reports')}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center space-x-2 transition-all shadow-sm shadow-emerald-500/20"
           >
+            <Award className="w-4 h-4" />
             <span>Generate Security Passport</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
-        </div>
-      ) : (
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center space-x-3 text-xs font-mono">
-          <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
-          <span className="text-slate-300">
-            <strong>Rule 6 — Ground-Truth Verification Authority:</strong> Patches are never validated by LLM consensus. Verification requires deterministic compiler exit codes (0), zero AddressSanitizer crashes, 100% regression pass, and footprint delta &lt; 256 bytes. Current Status: <strong className={verificationRecord?.final_status === 'REJECTED' ? 'text-rose-400' : 'text-amber-400'}>{verificationRecord ? verificationRecord.final_status : 'INCONCLUSIVE'}</strong>.
-          </span>
-        </div>
-      )}
-
-      {/* Verification Stages Progression */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono text-xs">
-        {/* Stage 1: Compiler */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>STAGE 1: COMPILER</span>
-            <Terminal className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="text-sm font-bold text-white">Dual GCC / Clang</div>
-          <div className="pt-1">
-            {dualCompileResult || verificationRecord?.post_patch_compiler_exit === 0 ? (
-              <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Exit 0 (PASSED)</span>
-              </span>
-            ) : (
-              <span className="text-slate-500">Awaiting execution</span>
-            )}
-          </div>
-        </div>
-
-        {/* Stage 2: ASan & UBSan */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>STAGE 2: SANITIZER</span>
-            <Zap className="w-4 h-4 text-yellow-400" />
-          </div>
-          <div className="text-sm font-bold text-white">ASan & UBSan</div>
-          <div className="pt-1">
-            {sanitizerResult || verificationRecord?.asan_exit_code === 0 ? (
-              <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>0 Crashes (PASSED)</span>
-              </span>
-            ) : (
-              <span className="text-slate-500">Awaiting execution</span>
-            )}
-          </div>
-        </div>
-
-        {/* Stage 3: Regression Test */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>STAGE 3: REGRESSION</span>
-            <Layers className="w-4 h-4 text-purple-400" />
-          </div>
-          <div className="text-sm font-bold text-white">4-Tier Test Matrix</div>
-          <div className="pt-1">
-            {regressionResult || verificationRecord?.test_suite_passed ? (
-              <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>4/4 Passed (PASSED)</span>
-              </span>
-            ) : (
-              <span className="text-slate-500">Awaiting execution</span>
-            )}
-          </div>
-        </div>
-
-        {/* Stage 4: Resource Delta */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>STAGE 4: PROFILER</span>
-            <Cpu className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="text-sm font-bold text-white">Flash / RAM Delta</div>
-          <div className="pt-1">
-            {resourceResult ? (
-              <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>+{resourceResult.flash_delta_bytes}B Flash (PASSED)</span>
-              </span>
-            ) : verificationRecord && verificationRecord.binary_size_delta_bytes > 0 ? (
-              <span className="text-emerald-400 font-bold flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>+{verificationRecord.binary_size_delta_bytes}B Flash (PASSED)</span>
-              </span>
-            ) : (
-              <span className="text-slate-500">Awaiting execution</span>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Resource Profiler Comparison Card */}
-      {resourceResult && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-white">
-                  Memory Footprint Profile Result:
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                    resourceResult.is_resource_safe
-                      ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
-                      : 'bg-rose-950/80 text-rose-400 border border-rose-800'
-                  }`}
-                >
-                  {resourceResult.verdict}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">{resourceResult.summary}</p>
+      {/* 4 Interactive Verification Harness Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Gate 1: Dual Compilation */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
+                <FileCheck className="w-4 h-4 text-blue-500" />
+                <span>Gate 1: Dual Compiler Harness</span>
+              </span>
+              <span
+                className={`text-[11px] font-bold ${
+                  verificationRecord?.post_patch_compiler_exit === 0 ? 'text-emerald-600' : 'text-slate-400'
+                }`}
+              >
+                {verificationRecord?.post_patch_compiler_exit === 0 ? '✓ PASSED' : 'PENDING'}
+              </span>
             </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Executes `clang -Wall -Wextra -Werror` on both pre-patch and post-patch source files to verify deterministic exit-code 0.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-            {/* Flash Memory Card */}
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
-                <span className="text-cyan-400 font-bold">FLASH (ROM / .text) OVERHEAD</span>
-                <span>Max Allowed: +256 Bytes</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-                  <span className="text-slate-500 block">Pre-Patch Flash:</span>
-                  <span className="text-slate-200 font-bold text-sm">
-                    {resourceResult.pre_patch_metrics.total_flash_bytes} B
-                  </span>
-                </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-                  <span className="text-slate-500 block">Post-Patch Flash:</span>
-                  <span className="text-slate-200 font-bold text-sm">
-                    {resourceResult.post_patch_metrics.total_flash_bytes} B
-                  </span>
-                </div>
-              </div>
-              <div className="text-emerald-400 font-semibold text-[11px] pt-1">
-                Net Delta: +{resourceResult.flash_delta_bytes} Bytes (+{resourceResult.flash_delta_percentage}%)
-              </div>
-            </div>
-
-            {/* RAM Memory Card */}
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
-                <span className="text-cyan-400 font-bold">STATIC RAM (.data + .bss) OVERHEAD</span>
-                <span>Max Allowed: +64 Bytes</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-                  <span className="text-slate-500 block">Pre-Patch RAM:</span>
-                  <span className="text-slate-200 font-bold text-sm">
-                    {resourceResult.pre_patch_metrics.total_ram_bytes} B
-                  </span>
-                </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-                  <span className="text-slate-500 block">Post-Patch RAM:</span>
-                  <span className="text-slate-200 font-bold text-sm">
-                    {resourceResult.post_patch_metrics.total_ram_bytes} B
-                  </span>
-                </div>
-              </div>
-              <div className="text-emerald-400 font-semibold text-[11px] pt-1">
-                Net Delta: {resourceResult.ram_delta_bytes >= 0 ? `+${resourceResult.ram_delta_bytes}` : resourceResult.ram_delta_bytes} Bytes (Zero dynamic heap expansion)
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer / Progression Card */}
-      <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="text-slate-400">
-          <span className="text-white font-semibold">Verification Record Status: </span>
-          <span className={`font-mono font-bold ${verificationRecord?.final_status === 'VERIFIED' ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {verificationRecord ? verificationRecord.final_status : 'NOT STARTED'}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
           <button
-            onClick={() => navigate('/code-diff')}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            onClick={handleRunCompile}
+            disabled={isCompiling || !selectedPatchId}
+            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
           >
-            Back to Diff Review
+            <Play className="w-3.5 h-3.5" />
+            <span>{isCompiling ? 'Compiling Dual C Sources...' : 'Execute Dual Compilation'}</span>
+          </button>
+        </div>
+
+        {/* Gate 2: Runtime Sanitizers */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
+                <ShieldAlert className="w-4 h-4 text-rose-500" />
+                <span>Gate 2: AddressSanitizer (ASan) &amp; UBSan</span>
+              </span>
+              <span
+                className={`text-[11px] font-bold ${
+                  verificationRecord?.asan_exit_code === 0 ? 'text-emerald-600' : 'text-slate-400'
+                }`}
+              >
+                {verificationRecord?.asan_exit_code === 0 ? '✓ PASSED' : 'PENDING'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Injects boundary inputs with `-fsanitize=address,undefined` to verify stack-overflow trapping and zero undefined behaviors.
+            </p>
+          </div>
+
+          <button
+            onClick={handleRunSanitizer}
+            disabled={isSanitizing || !selectedPatchId}
+            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+          >
+            <Play className="w-3.5 h-3.5" />
+            <span>{isSanitizing ? 'Running Sanitizer Harness...' : 'Execute ASan/UBSan Check'}</span>
+          </button>
+        </div>
+
+        {/* Gate 3: Functional Regression */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>Gate 3: 4-Tier Regression Matrix</span>
+              </span>
+              <span
+                className={`text-[11px] font-bold ${
+                  verificationRecord?.test_suite_passed ? 'text-emerald-600' : 'text-slate-400'
+                }`}
+              >
+                {verificationRecord?.test_suite_passed ? '✓ PASSED' : 'PENDING'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Verifies Benign inputs, Boundary conditions, neutralized Exploit payloads, and Fault injection vectors with 100% pass criteria.
+            </p>
+          </div>
+
+          <button
+            onClick={handleRunRegression}
+            disabled={isRegressing || !selectedPatchId}
+            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+          >
+            <Play className="w-3.5 h-3.5" />
+            <span>{isRegressing ? 'Executing 4-Tier Matrix...' : 'Run Functional Regression'}</span>
+          </button>
+        </div>
+
+        {/* Gate 4: Resource Profiler */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
+                <Cpu className="w-4 h-4 text-purple-500" />
+                <span>Gate 4: Binary Footprint &amp; RAM Delta</span>
+              </span>
+              <span
+                className={`text-[11px] font-bold ${
+                  resourceResult ? (resourceResult.is_resource_safe ? 'text-emerald-600' : 'text-rose-600') : 'text-slate-400'
+                }`}
+              >
+                {resourceResult ? (resourceResult.is_resource_safe ? '✓ SAFE' : 'EXCEEDED') : 'PENDING'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Ensures Flash footprint delta does not exceed 256 Bytes and guarantees zero dynamic heap expansion in microcontroller memory.
+            </p>
+          </div>
+
+          <button
+            onClick={handleRunProfiling}
+            disabled={isProfiling || !selectedPatchId}
+            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+          >
+            <Play className="w-3.5 h-3.5" />
+            <span>{isProfiling ? 'Measuring Footprint...' : 'Profile Binary Overhead'}</span>
           </button>
         </div>
       </div>

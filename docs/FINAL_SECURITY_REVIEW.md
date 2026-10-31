@@ -37,3 +37,4 @@ Safe Vibe AI ingests untrusted third-party C/C++ firmware repositories and synth
 ### E. Cryptographic Chain-of-Custody Passports
 - **Threat:** Tampering with verification records or asserting repairs without empirical proof.
 - **Defense Implementation:** `VerificationPassportGenerator` computes an immutable SHA-256 digital fingerprint across the original source hash, patched source hash, compiler exit codes, ASan logs, and regression results. The passport provides cryptographic proof of vulnerability neutralization (CVSS 9.8 -> 0.0).
+

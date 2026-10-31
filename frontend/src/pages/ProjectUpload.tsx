@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UploadCloud, FolderArchive, FileCode, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Upload, FolderArchive, FileCode, CheckCircle2, AlertCircle, Loader2, ArrowRight, ShieldCheck, HardDrive } from 'lucide-react';
 import { uploadProject, listProjects, ProjectData } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -51,10 +51,10 @@ export const ProjectUpload: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-10">
       <div>
-        <h1 className="text-xl font-bold text-white tracking-tight">Firmware Project Ingestion</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Firmware Project Ingestion</h1>
+        <p className="text-sm text-slate-500 mt-1">
           Upload C/C++ source files or complete IoT firmware archives (ESP-IDF, FreeRTOS, Arduino).
         </p>
       </div>
@@ -71,86 +71,91 @@ export const ProjectUpload: React.FC = () => {
       {/* Upload Dropzone */}
       <div
         onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`p-8 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center space-y-4 cursor-pointer ${
+        className={`p-10 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center space-y-4 cursor-pointer bg-white shadow-sm ${
           isUploading
-            ? 'border-cyan-500 bg-cyan-950/20 pointer-events-none'
-            : 'border-slate-700 hover:border-cyan-500/50 bg-slate-900/30'
+            ? 'border-blue-500 bg-blue-50/50 pointer-events-none'
+            : 'border-slate-300 hover:border-blue-500 hover:bg-slate-50/50'
         }`}
       >
-        <div className="w-14 h-14 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-          {isUploading ? <Loader2 className="w-7 h-7 animate-spin" /> : <UploadCloud className="w-7 h-7" />}
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
+          {isUploading ? (
+            <Loader2 className="w-8 h-8 animate-spin" />
+          ) : (
+            <Upload className="w-8 h-8" />
+          )}
         </div>
+
         <div className="space-y-1">
-          <p className="text-sm font-medium text-white">
-            {isUploading ? 'Validating and unpacking firmware...' : 'Drag & drop firmware ZIP archive or single C/C++ file'}
+          <p className="text-sm font-semibold text-slate-800">
+            {isUploading ? 'Extracting & Sanitizing Workspace...' : 'Click to select or drag and drop firmware files'}
           </p>
-          <p className="text-xs text-slate-500 font-mono">
-            Supported extensions: .zip, .c, .cpp, .h, .hpp (Max 100MB)
+          <p className="text-xs text-slate-400">
+            Supported formats: .zip, .tar.gz archives or single .c, .cpp, .h source files (Max 100MB)
           </p>
         </div>
-        <button
-          type="button"
-          disabled={isUploading}
-          className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700"
-        >
-          {isUploading ? 'Processing...' : 'Browse Local Files'}
-        </button>
+
+        <div className="flex items-center space-x-4 pt-2 text-[11px] text-slate-500">
+          <span className="flex items-center space-x-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Zip-Slip Traversal Defended</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <HardDrive className="w-3.5 h-3.5 text-blue-500" />
+            <span>Isolated Shadow Workspace</span>
+          </span>
+        </div>
       </div>
 
-      {/* Feedback Messages */}
-      {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center space-x-3 text-xs font-mono text-rose-400">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
+      {/* Success / Error Banners */}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center space-x-3 text-xs font-mono text-emerald-400">
-          <CheckCircle2 className="w-5 h-5 shrink-0" />
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2 font-medium">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
-      {/* Ingested Projects List */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-mono uppercase tracking-wider text-slate-400 font-semibold">
-          Ingested Codebases ({projects.length})
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 font-medium">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Indexed Repositories */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <h2 className="text-sm font-bold text-slate-900">
+          Indexed Firmware Repositories ({projects.length})
         </h2>
 
         {projects.length === 0 ? (
-          <div className="p-6 rounded-xl bg-slate-900/40 border border-slate-800 text-center text-xs font-mono text-slate-500">
-            No firmware projects ingested yet. Upload your first codebase above.
+          <div className="p-8 text-center text-xs text-slate-400">
+            No projects uploaded yet. Select a firmware archive above to begin analysis.
           </div>
         ) : (
-          <div className="space-y-2">
-            {projects.map((proj) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {projects.map((p) => (
               <div
-                key={proj.id}
-                className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-colors flex items-center justify-between"
+                key={p.id}
+                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-all flex items-center justify-between group"
               >
-                <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-lg bg-cyan-950 border border-cyan-800 flex items-center justify-center text-cyan-400 font-mono text-xs">
-                    <FileCode className="w-5 h-5" />
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <FolderArchive className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-bold text-slate-800">{p.name}</span>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-white text-sm">{proj.name}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700">
-                        {proj.framework_type.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-mono">
-                      {proj.file_count} files &bull; {new Date(proj.created_at).toLocaleString()}
-                    </p>
+                  <div className="text-[11px] text-slate-500">
+                    Framework: <span className="text-slate-700 font-medium">{p.framework_type.toUpperCase()}</span> | Files: <span className="font-medium text-slate-700">{p.file_count}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    Created: {new Date(p.created_at).toLocaleDateString()}
                   </div>
                 </div>
 
                 <button
-                  onClick={() => navigate('/scanner')}
-                  className="px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-mono flex items-center space-x-1"
+                  onClick={() => navigate('/analysis')}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-1 shadow-xs"
                 >
-                  <span>Launch Scanner</span>
+                  <span>Analyze</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
