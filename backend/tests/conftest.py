@@ -7,7 +7,19 @@ test unauthenticated, analyst, and admin access paths.
 
 import pytest
 from backend.app.core.auth import get_current_user
+from backend.app.db.session import init_db
 from backend.app.models.user import User
+
+
+@pytest.fixture(autouse=True, scope="session")
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+async def ensure_db_initialized():
+    """Ensures database schema tables exist before executing tests in any environment."""
+    await init_db()
 
 
 @pytest.fixture(autouse=True)

@@ -57,6 +57,8 @@ jobs:
           python -m pytest backend/tests/test_database_configuration.py backend/tests/test_database_connection.py backend/tests/test_database_migrations.py backend/tests/test_database_crud.py backend/tests/test_database_persistence.py -v
 
       - name: Run Full Pytest Suite (SQLite Development Mode)
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
         run: |
           python -m pytest backend/tests/test_database_configuration.py backend/tests/test_database_connection.py backend/tests/test_database_migrations.py backend/tests/test_database_crud.py backend/tests/test_database_persistence.py backend/tests/test_auth_rbac.py backend/tests/test_health.py backend/tests/test_cwe_normalizer.py -v
 
