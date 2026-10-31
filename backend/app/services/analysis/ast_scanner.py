@@ -135,13 +135,15 @@ class AstSecurityScanner:
                 for param in fn.params:
                     # If parameter is a pointer
                     if "*" in param or "const" in param:
-                        parts = param.replace("*", " ").split()
+                        clean_param = param.replace("*", " ").replace("[", " ").replace("]", " ")
+                        parts = clean_param.split()
                         param_name = parts[-1].strip() if parts else ""
-                        if not param_name or param_name.startswith("char"):
+                        if not param_name or param_name in {"char", "void", "int", "float", "double", "bool"} or param_name.startswith("char"):
                             continue
 
-                        # Check if param_name is dereferenced like param_name[0] or *param_name
-                        deref_pattern = rf"(\*{param_name}\b|{param_name}\[[^\]]+\]|{param_name}->)"
+                        # Check if param_name is dereferenced safely using escaped name
+                        safe_name = re.escape(param_name)
+                        deref_pattern = rf"(\*{safe_name}\b|{safe_name}\[[^\]]+\]|{safe_name}->)"
                         if re.search(deref_pattern, line_str):
                             # Verify if there was an earlier NULL check for this parameter in the function
                             func_lines_before = lines[fn.start_line : idx - 1]
