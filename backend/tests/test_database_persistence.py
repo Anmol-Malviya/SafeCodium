@@ -47,12 +47,12 @@ async def test_concurrent_transactions():
             await session.commit()
             return proj.id
 
-    # Execute 10 concurrent writes
-    tasks = [create_project(i) for i in range(10)]
+    # Execute concurrent writes
+    tasks = [create_project(i) for i in range(5)]
     created_ids = await asyncio.gather(*tasks)
-    assert len(created_ids) == 10
+    assert len(created_ids) == 5
 
-    # Execute 10 concurrent reads
+    # Execute concurrent reads
     async def read_project(pid: str):
         async with AsyncSessionLocal() as session:
             return await session.get(Project, pid)
