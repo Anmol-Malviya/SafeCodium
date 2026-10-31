@@ -61,3 +61,4 @@ async def test_manifest_and_downloads_pipeline():
         assert repaired_dl.status_code == 200
         assert repaired_dl.headers["content-type"] == "application/zip"
         assert len(repaired_dl.content) > 100
+
