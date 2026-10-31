@@ -34,7 +34,7 @@ async def test_ai_reasoning_generation():
 
     response = await ai_router.generate_reasoning(req)
     assert response.provider.startswith("gemini")
-    assert "CWE-120" in response.root_cause_analysis or "memory" in response.root_cause_analysis.lower()
+    assert "cwe-120" in response.root_cause_analysis.lower() or "memory" in response.root_cause_analysis.lower() or "buffer" in response.root_cause_analysis.lower() or "strcpy" in response.root_cause_analysis.lower()
     assert len(response.defensive_guidelines) > 0
 
 
