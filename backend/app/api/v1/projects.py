@@ -83,6 +83,15 @@ async def upload_project(
         framework_type = WorkspaceManager.detect_framework_type(original_dir)
         indexed_files = WorkspaceManager.index_source_files(original_dir)
 
+        if len(indexed_files) == 0:
+            WorkspaceManager.unprotect_original_workspace(original_dir)
+            shutil.rmtree(original_dir.parent, ignore_errors=True)
+            shutil.rmtree(shadow_dir.parent, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No supported C/C++ firmware files found in uploaded archive. Upload an archive containing .c, .cpp, or .h files."
+            )
+
         project = Project(
             id=project_id,
             name=project_name,
