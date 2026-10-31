@@ -1,5 +1,15 @@
 import axios from 'axios';
 
+export interface DatabaseHealthData {
+  status: string;
+  dialect: string;
+  driver: string;
+  latency_ms: number;
+  schema_initialized: boolean;
+  migration_version: string | null;
+  error: string | null;
+}
+
 export interface SystemHealthData {
   status: string;
   uptime_seconds: number;
@@ -12,6 +22,7 @@ export interface SystemHealthData {
   vram_total_mb: number | null;
   vram_free_mb: number | null;
   database_connected: boolean;
+  database_details?: DatabaseHealthData;
 }
 
 export interface ApiResponse<T> {
@@ -21,8 +32,15 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
+const resolveBaseUrl = (): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  return '/api/v1';
+};
+
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: resolveBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -32,7 +50,7 @@ export const api = axios.create({
 // Automatic authorization header interceptor
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('safecodium_token');
-  const apiKey = localStorage.getItem('safecodium_api_key') || 'sk_safe_dev_admin_key_2026';
+  const apiKey = localStorage.getItem('safecodium_api_key');
   if (token) {
     config.headers.Authorization = 'Bearer ' + token;
   } else if (apiKey) {

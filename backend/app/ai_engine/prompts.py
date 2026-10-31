@@ -57,6 +57,7 @@ Strict Embedded Constraints:
 2. Never allocate unbounded dynamic heap memory (avoid malloc/calloc in tight firmware loops).
 3. Do not introduce dependencies on external third-party libraries.
 4. Output must include a valid unified diff (--- a/file +++ b/file @@ ... @@).
+   CRITICAL FOR DIFF: Every context line MUST have a leading space ' ', removals MUST start with '-', additions MUST start with '+'. Never drop the closing brace '}' of an 'if' block in context lines or diff!
 5. Return strictly a JSON object with keys:
 "unified_diff", "explanation", "repaired_code", "defensive_checks_added", "side_effect_assessment".
 """

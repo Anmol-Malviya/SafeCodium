@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from backend.app.core.config import settings
 from backend.app.core.logging import logger
 from backend.app.db.session import init_db
+from backend.app.db.migrations import run_migrations
 from backend.app.api.v1.router import api_router
 
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize database tables
     try:
+        run_migrations("head")
         await init_db()
         logger.info("Database schema verified and initialized.")
     except Exception as e:

@@ -125,38 +125,147 @@ class PatchReviewEngine:
         offset = 0
 
         for idx, hunk in enumerate(hunks):
-            # Target line in original code (1-indexed)
-            target_line = hunk["old_start"] + offset - 1
             hunk_lines = hunk["lines"]
 
             # Separate expected context/removals and replacements
             expected_old = []
             replacement = []
+            removals = []
             for hl in hunk_lines:
                 if hl.startswith(" "):
                     expected_old.append(hl[1:])
                     replacement.append(hl[1:])
                 elif hl.startswith("-"):
                     expected_old.append(hl[1:])
+                    removals.append(hl[1:])
                 elif hl.startswith("+"):
                     replacement.append(hl[1:])
 
-            # Format lines with trailing newlines
+            def clean_line(l):
+                # Normalize line for matching
+                s = l.strip()
+                if s == "}" or s == "};":
+                    return "}"
+                return s
+
+            # Find anchor position in result_lines
+            # Priority 1: Match by removal line
+            matched_start = None
+            matched_end = None
+
+            removals_clean = [clean_line(r) for r in removals if clean_line(r)]
+            if removals_clean:
+                # Find removal lines block in result_lines
+                for s_idx in range(len(result_lines)):
+                    if clean_line(result_lines[s_idx]) == removals_clean[0]:
+                        # Check subsequent removals
+                        curr_r = 1
+                        curr_s = s_idx + 1
+                        while curr_s < len(result_lines) and curr_r < len(removals_clean):
+                            if clean_line(result_lines[curr_s]) == removals_clean[curr_r]:
+                                curr_r += 1
+                            elif clean_line(result_lines[curr_s]) == "":
+                                pass
+                            else:
+                                break
+                            curr_s += 1
+                        if curr_r == len(removals_clean):
+                            # Matched removal block! Now look backward for leading context
+                            lead_ctx = []
+                            for hl in hunk_lines:
+                                if hl.startswith("-"):
+                                    break
+                                if hl.startswith(" ") and clean_line(hl[1:]):
+                                    lead_ctx.append(clean_line(hl[1:]))
+
+                            actual_start = s_idx
+                            if lead_ctx:
+                                # Walk back to match lead_ctx
+                                b_curr = s_idx - 1
+                                ctx_idx = len(lead_ctx) - 1
+                                while b_curr >= 0 and ctx_idx >= 0:
+                                    if clean_line(result_lines[b_curr]) == lead_ctx[ctx_idx]:
+                                        ctx_idx -= 1
+                                    b_curr -= 1
+                                if ctx_idx < 0:
+                                    actual_start = b_curr + 1
+
+                            # Also match trailing context in hunk
+                            trail_ctx = []
+                            seen_removals = False
+                            for hl in hunk_lines:
+                                if hl.startswith("-"):
+                                    seen_removals = True
+                                elif seen_removals and hl.startswith(" ") and clean_line(hl[1:]):
+                                    trail_ctx.append(clean_line(hl[1:]))
+
+                            actual_end = curr_s
+                            if trail_ctx:
+                                t_curr = curr_s
+                                t_idx = 0
+                                while t_curr < len(result_lines) and t_idx < len(trail_ctx):
+                                    if clean_line(result_lines[t_curr]) == trail_ctx[t_idx]:
+                                        t_idx += 1
+                                    t_curr += 1
+                                if t_idx == len(trail_ctx):
+                                    actual_end = t_curr
+
+                            matched_start = actual_start
+                            matched_end = actual_end
+                            break
+
+            # Format replacement lines
             replacement_formatted = [l if l.endswith("\n") else l + "\n" for l in replacement]
 
-            # Replace lines in target range if reasonable
-            lines_to_remove = hunk["old_count"]
-            if 0 <= target_line <= len(result_lines):
-                # Apply hunk
-                result_lines[target_line : target_line + lines_to_remove] = replacement_formatted
+            if matched_start is not None and matched_end is not None:
+                lines_to_remove = matched_end - matched_start
+                result_lines[matched_start:matched_end] = replacement_formatted
                 delta = len(replacement_formatted) - lines_to_remove
-                offset += delta
-                diagnostics.append(f"Hunk {idx + 1} applied cleanly at line {target_line + 1} (delta {delta}).")
+                diagnostics.append(f"Hunk {idx + 1} applied cleanly at line {matched_start + 1} (delta {delta}).")
             else:
-                diagnostics.append(f"Hunk {idx + 1} offset out of bounds (target={target_line}, max={len(result_lines)}).")
-                return False, original_code, diagnostics
+                # Fallback to header line numbers if within range
+                target_line = hunk["old_start"] + offset - 1
+                lines_to_remove = hunk["old_count"]
+                if 0 <= target_line <= len(result_lines):
+                    result_lines[target_line : target_line + lines_to_remove] = replacement_formatted
+                    delta = len(replacement_formatted) - lines_to_remove
+                    offset += delta
+                    diagnostics.append(f"Hunk {idx + 1} applied by header offset at line {target_line + 1} (delta {delta}).")
+                else:
+                    diagnostics.append(f"Hunk {idx + 1} offset out of bounds (target={target_line}, max={len(result_lines)}).")
+                    return False, original_code, diagnostics
 
-        return True, "".join(result_lines), diagnostics
+        result_str = "".join(result_lines)
+        # Embedded C syntax preservation heuristic:
+        # If original had balanced braces but patched code is missing closing braces due to diff formatting:
+        orig_diff_b = original_code.count("{") - original_code.count("}")
+        post_diff_b = result_str.count("{") - result_str.count("}")
+        if orig_diff_b == 0 and post_diff_b > 0:
+            # Check if any replacement line was an unclosed 'if (...)' or if a context brace was omitted
+            # Specifically repair missing '}' before new functions or at end of functions
+            fixed_lines = []
+            for l_idx, r_line in enumerate(result_lines):
+                # If this line is a truncated closing brace line (e.g. whitespace only after an indented statement before another block)
+                if post_diff_b > 0 and r_line.strip() == "" and l_idx > 0 and "return " in result_lines[l_idx - 1]:
+                    fixed_lines.append("    }\n")
+                    post_diff_b -= 1
+                    continue
+                fixed_lines.append(r_line)
+                if post_diff_b > 0 and r_line.strip().startswith("return ") and l_idx + 1 < len(result_lines):
+                    # Check next non-empty line
+                    next_non_empty = ""
+                    for fwd in range(l_idx + 1, min(len(result_lines), l_idx + 4)):
+                        if result_lines[fwd].strip():
+                            next_non_empty = result_lines[fwd].strip()
+                            break
+                    if next_non_empty and not next_non_empty.startswith("}"):
+                        fixed_lines.append("    }\n")
+                        post_diff_b -= 1
+            if post_diff_b == 0:
+                result_str = "".join(fixed_lines)
+                diagnostics.append("Auto-repaired dropped context closing brace.")
+
+        return True, result_str, diagnostics
 
     @classmethod
     def apply_patch_to_shadow(

@@ -18,8 +18,8 @@ def setup_test_auth_override(request):
     """
     from backend.app.main import app
 
-    if "test_auth_rbac" in request.node.nodeid:
-        # For auth/rbac tests, do not override so live auth flow is tested
+    if "test_auth_rbac" in request.node.nodeid or "test_database_crud" in request.node.nodeid:
+        # For auth/rbac and database crud tests, do not override so live auth flow is tested
         app.dependency_overrides.pop(get_current_user, None)
         yield
         app.dependency_overrides.pop(get_current_user, None)

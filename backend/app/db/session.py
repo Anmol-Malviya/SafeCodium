@@ -1,22 +1,47 @@
-"""Safe Vibe AI — Async Database Engine and Session Factory."""
+"""Safe Vibe AI / SafeCodium — Async Database Engine and Session Factory."""
 
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
+
 from backend.app.core.config import settings
+from backend.app.core.logging import logger
 from backend.app.db.base import Base
 
-# Create async engine with SQLite parameters
-engine = create_async_engine(
+# Ensure all models are registered on Base.metadata before any engine/schema activity
+import backend.app.models  # noqa: F401
+
+
+def get_engine_args(database_url: str) -> dict:
+    """Returns database dialect-specific engine parameters."""
+    if database_url.startswith("sqlite+aiosqlite"):
+        return {
+            "connect_args": {"check_same_thread": False},
+            "echo": False,
+        }
+    elif database_url.startswith("postgresql+asyncpg"):
+        return {
+            "echo": False,
+            "pool_size": 10,
+            "max_overflow": 20,
+            "pool_pre_ping": True,
+            "pool_recycle": 1800,
+        }
+    return {"echo": False}
+
+
+# Create centralized async engine
+engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},
+    **get_engine_args(settings.DATABASE_URL),
 )
 
-# Async session factory
+# Centralized Async session factory
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -27,13 +52,21 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Initializes tables asynchronously."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """
+    Initializes tables asynchronously using registered models.
+    Non-destructive: existing tables and columns are preserved.
+    """
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schema verified via Base.metadata.create_all")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency provider for FastAPI route handlers."""
+    """Centralized database session dependency provider for FastAPI handlers."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -43,4 +76,3 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
-

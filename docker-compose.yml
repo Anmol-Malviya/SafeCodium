@@ -1,9 +1,31 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: safecodium-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-safecodium}
+      POSTGRES_USER: ${POSTGRES_USER:-safecodium}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safecodium_secure_pass_2026}
+    volumes:
+      - safecodium_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-safecodium} -d ${POSTGRES_DB:-safecodium}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - safecodium-network
+
   safecodium:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: safecodium-app
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
@@ -11,13 +33,20 @@ services:
       - DEBUG=false
       - HOST=0.0.0.0
       - PORT=8000
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-safecodium}:${POSTGRES_PASSWORD:-safecodium_secure_pass_2026}@postgres:5432/${POSTGRES_DB:-safecodium}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
       - DEFAULT_AI_PROVIDER=gemini
     volumes:
       - safecodium_data:/app/data
     restart: unless-stopped
+    networks:
+      - safecodium-network
+
+networks:
+  safecodium-network:
+    driver: bridge
 
 volumes:
   safecodium_data:
-
+  safecodium_pgdata:

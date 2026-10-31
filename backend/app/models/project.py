@@ -1,10 +1,13 @@
 """Safe Vibe AI — Database ORM Models."""
 
 import uuid
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import String, Integer, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from backend.app.models.user import User
 
 
 def generate_uuid() -> str:
@@ -24,9 +27,11 @@ class Project(Base, TimestampMixin):
     shadow_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     file_count: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    owner_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    # Foreign keys
+    owner_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
 
     # Relationships
+    owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[owner_id])
     scans: Mapped[List["Scan"]] = relationship("Scan", back_populates="project", cascade="all, delete-orphan")
     vulnerabilities: Mapped[List["Vulnerability"]] = relationship("Vulnerability", back_populates="project", cascade="all, delete-orphan")
 
@@ -36,7 +41,7 @@ class Scan(Base, TimestampMixin):
     __tablename__ = "scans"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
-    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), index=True, nullable=False)
     scanner_type: Mapped[str] = mapped_column(String(64), default="composite")  # semgrep, clang, custom, composite
     status: Mapped[str] = mapped_column(String(32), default="pending")  # pending, completed, failed
     findings_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -52,8 +57,8 @@ class Vulnerability(Base, TimestampMixin):
     __tablename__ = "vulnerabilities"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
-    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), nullable=False)
-    scan_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("scans.id"), nullable=True)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), index=True, nullable=False)
+    scan_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("scans.id"), index=True, nullable=True)
     cwe_id: Mapped[str] = mapped_column(String(32), nullable=False)  # e.g., CWE-120
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[str] = mapped_column(String(32), default="HIGH")  # CRITICAL, HIGH, MEDIUM, LOW
@@ -76,7 +81,7 @@ class Patch(Base, TimestampMixin):
     __tablename__ = "patches"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
-    vulnerability_id: Mapped[str] = mapped_column(String(36), ForeignKey("vulnerabilities.id"), nullable=False)
+    vulnerability_id: Mapped[str] = mapped_column(String(36), ForeignKey("vulnerabilities.id"), index=True, nullable=False)
     ai_provider: Mapped[str] = mapped_column(String(64), default="gemini")  # gemini, openai, ollama
     model_name: Mapped[str] = mapped_column(String(64), default="gemini-2.5-flash")
     unified_diff: Mapped[str] = mapped_column(Text, nullable=False)
@@ -94,7 +99,7 @@ class Verification(Base, TimestampMixin):
     __tablename__ = "verifications"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
-    patch_id: Mapped[str] = mapped_column(String(36), ForeignKey("patches.id"), nullable=False)
+    patch_id: Mapped[str] = mapped_column(String(36), ForeignKey("patches.id"), index=True, nullable=False)
     pre_patch_compiler_exit: Mapped[int] = mapped_column(Integer, default=0)
     post_patch_compiler_exit: Mapped[int] = mapped_column(Integer, default=0)
     asan_exit_code: Mapped[int] = mapped_column(Integer, default=0)
