@@ -122,7 +122,7 @@ class EndToEndDemonstrator:
             target_vuln = vulns[0] if vulns else Vulnerability(
                 id=f"vuln-{demo_uuid}",
                 project_id=proj_id,
-                scan_id=scan_id,
+                scan_id=scan.id,
                 cwe_id=target_cwe,
                 title="Buffer Copy without Checking Size" if target_cwe == "CWE-120" else "NULL Pointer Dereference",
                 severity="CRITICAL" if target_cwe == "CWE-120" else "HIGH",

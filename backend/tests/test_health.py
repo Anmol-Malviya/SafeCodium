@@ -5,6 +5,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from backend.app.main import app
 from backend.app.db.session import init_db
+from backend.app.core.config import Settings
 
 
 @pytest.mark.asyncio
@@ -40,3 +41,17 @@ async def test_health_endpoint():
         assert "python_version" in data
         assert "os" in data
 
+
+def test_settings_debug_resilience_to_non_boolean_strings():
+    """Verify that non-boolean strings like 'WARN', 'info', 'express:*' safely default to False without crashing."""
+    s_warn = Settings(DEBUG="WARN")
+    assert s_warn.DEBUG is False
+
+    s_true = Settings(DEBUG="True")
+    assert s_true.DEBUG is True
+
+    s_false = Settings(DEBUG="false")
+    assert s_false.DEBUG is False
+
+    s_one = Settings(DEBUG="1")
+    assert s_one.DEBUG is True

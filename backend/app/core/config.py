@@ -21,6 +21,20 @@ class Settings(BaseSettings):
     PORT: int = 8000
     HOST: str = "127.0.0.1"
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, v: Union[bool, str]) -> bool:
+        """Safely parses DEBUG boolean and handles arbitrary strings like 'WARN' without crashing."""
+        if isinstance(v, str):
+            v_lower = v.strip().lower()
+            if v_lower in ("true", "1", "yes", "on", "t", "y"):
+                return True
+            elif v_lower in ("false", "0", "no", "off", "f", "n"):
+                return False
+            # Default to False if string is an unparseable log level or trace filter (e.g. 'WARN')
+            return False
+        return bool(v)
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
@@ -68,4 +82,3 @@ settings = Settings()
 # Ensure directories exist
 for path in [settings.DATA_DIR, settings.UPLOAD_DIR, settings.WORKSPACE_DIR, settings.ARTIFACT_DIR]:
     path.mkdir(parents=True, exist_ok=True)
-

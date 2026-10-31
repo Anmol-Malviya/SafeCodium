@@ -1,0 +1,18 @@
+Variable,Purpose,Required?,Defined in Template?,Consumed by Code?,Validated at Startup?,Status
+ENVIRONMENT,Application execution environment (development/staging/production),No,Yes,Yes,No,PASS - Defaulted
+DEBUG,Enables debug tracebacks and uvicorn reload,No,Yes,Yes,No (Crashes if non-boolean string),FAIL - Type mismatch vulnerability
+PORT,Backend service port,No,Yes,Yes,Yes (Int validation),PASS - Validated
+HOST,Backend bind host,No,Yes,Yes,No,PASS - Defaulted
+CORS_ORIGINS,Allowed CORS frontend origins,No,Yes,Yes,Yes (Pydantic validator),PASS - Validated
+DATABASE_URL,Database connection string,No,Yes,Yes,Yes (Database connectivity check on lifespan startup),PASS - Validated
+UPLOAD_DIR,Storage path for ingested source archives,No,Yes,Yes,Yes (Directory creation check),PASS - Validated
+WORKSPACE_DIR,Storage path for shadow workspaces,No,Yes,Yes,Yes (Directory creation check),PASS - Validated
+ARTIFACT_DIR,Storage path for verification reports and passports,No,Yes,Yes,Yes (Directory creation check),PASS - Validated
+GEMINI_API_KEY,Google GenAI API Key for primary reasoning/repair,Optional,Yes,Yes,No (Runtime availability probe),PASS - Functional with fallback
+GEMINI_MODEL,Google Gemini model identifier,No,Yes,Yes,No,PASS - Defaulted
+OPENAI_API_KEY,OpenAI API Key for critique provider,Optional,Yes,Yes,No (Runtime availability probe),PARTIAL - API probed but synthesis methods mocked
+OPENAI_MODEL,OpenAI model identifier,No,Yes,Yes,No,PASS - Defaulted
+OLLAMA_BASE_URL,Base URL for local Ollama daemon,No,Yes,Yes,No (Probed on demand),PASS - Defaulted
+OLLAMA_MODEL,Ollama model identifier,No,Yes,Yes,No (Probed on demand),PASS - Defaulted
+DEFAULT_AI_PROVIDER,Selected primary AI router provider,No,Yes,Yes,No,PASS - Defaulted
+

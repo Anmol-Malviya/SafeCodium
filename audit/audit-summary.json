@@ -1,0 +1,74 @@
+{
+  "system_name": "SafeCodium / Safe Vibe AI",
+  "audit_date": "2026-10-31",
+  "overall_verdict": "CONDITIONAL PASS — LIMITED TESTING ONLY",
+  "permitted_testing_scope": "Single-tenant local workstation testing, hackathon evaluation, controlled firmware fixture repair, and internal demonstration. Not permitted for open multi-tenant public deployment without authentication proxy.",
+  "metrics": {
+    "backend_tests_total": 41,
+    "backend_tests_passed": 41,
+    "backend_tests_failed": 0,
+    "backend_test_duration_seconds": 7.48,
+    "frontend_build_status": "SUCCESS",
+    "frontend_build_duration_seconds": 12.51,
+    "frontend_modules_transformed": 2756,
+    "frontend_typescript_errors": 0,
+    "security_patches_evaluated": 9,
+    "security_patches_passed": 9,
+    "security_patches_failed": 0,
+    "environment_variables_audited": 16,
+    "environment_variables_functional": 16,
+    "secrets_exposed": 0
+  },
+  "findings_summary": {
+    "critical": 0,
+    "high": 2,
+    "medium": 3,
+    "low": 1
+  },
+  "findings": [
+    {
+      "id": "SEC-01",
+      "severity": "HIGH",
+      "title": "Absence of Authentication & Authorization Gateway",
+      "status": "DOCUMENTED_LIMITATION",
+      "remediation": "Deploy behind authenticating reverse proxy (OAuth2-Proxy / Cloudflare Access) for multi-user deployment."
+    },
+    {
+      "id": "SEC-02",
+      "severity": "HIGH",
+      "title": "Unauthenticated AI Provider Reconfiguration Endpoint",
+      "status": "DOCUMENTED_LIMITATION",
+      "remediation": "Restrict /api/v1/ai/providers/configure to localhost or authenticated administrative role."
+    },
+    {
+      "id": "SEC-03",
+      "severity": "MEDIUM",
+      "title": "Startup Crash on Non-Boolean Environment DEBUG String",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Applied field_validator on Settings.DEBUG with regression test."
+    },
+    {
+      "id": "SEC-04",
+      "severity": "MEDIUM",
+      "title": "Transitive Vulnerability in dompurify (monaco-editor)",
+      "status": "DOCUMENTED_LIMITATION",
+      "remediation": "Execute npm audit fix when Monaco editor upstream releases patch."
+    },
+    {
+      "id": "SEC-05",
+      "severity": "MEDIUM",
+      "title": "Native Binary Execution on Linux Hosts Without Container Sandbox",
+      "status": "MITIGATED_ON_WINDOWS",
+      "remediation": "Windows execution defaults to simulation; provided Dockerfile for isolated container execution on Linux."
+    },
+    {
+      "id": "SEC-06",
+      "severity": "LOW",
+      "title": "Secondary AI Providers (OpenAI & Ollama) Return Templated Responses",
+      "status": "DOCUMENTED_LIMITATION",
+      "remediation": "Primary Google Gemini SDK is fully functional; secondary providers marked as optional prototypes."
+    }
+  ],
+  "unresolved_blockers": []
+}
+
