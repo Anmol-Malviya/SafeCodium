@@ -1,5 +1,6 @@
 """Safe Vibe AI — Central Multi-Provider AI Router."""
 
+import os
 from typing import Dict, List, Optional
 from backend.app.ai_engine.base import BaseAiProvider
 from backend.app.ai_engine.gemini_provider import GeminiProvider
@@ -25,13 +26,47 @@ class AiRouter:
             "openai": OpenAIProvider(),
             "ollama": OllamaProvider(),
         }
+        self.provider_enabled_state: Dict[str, bool] = {
+            "gemini": True,
+            "openai": True,
+            "ollama": True,
+        }
+        self.routing_settings = {
+            "primary_provider": "gemini",
+            "secondary_provider": "openai",
+            "fallback_provider": "ollama",
+            "request_timeout_seconds": 30,
+            "retry_policy_max_retries": 3,
+            "automatic_fallback_enabled": True,
+        }
+        self.advanced_settings = {
+            "request_timeout_seconds": 30,
+            "max_retries": 3,
+            "log_level": "INFO",
+            "strict_bounds_enforcement": True,
+            "cache_model_responses": False,
+        }
 
     async def check_all_providers(self) -> List[ProviderStatus]:
         """Probes all configured AI providers and returns operational health."""
         statuses = []
         for name, provider in self.providers.items():
+            enabled = self.provider_enabled_state.get(name, True)
             try:
                 status = await provider.check_availability()
+                status.enabled = enabled
+                if name == "gemini":
+                    status.credentials_configured = bool(getattr(provider, "api_key", False))
+                    status.endpoint_masked = "Configured"
+                    status.provider_role = "Primary Reasoning"
+                elif name == "openai":
+                    status.credentials_configured = bool(getattr(provider, "api_key", False))
+                    status.endpoint_masked = "Configured"
+                    status.provider_role = "Secondary Provider"
+                else:
+                    status.credentials_configured = True
+                    status.endpoint_masked = "Configured"
+                    status.provider_role = "Local Runtime"
                 statuses.append(status)
             except Exception as e:
                 statuses.append(
@@ -41,9 +76,38 @@ class AiRouter:
                         is_available=False,
                         is_primary=provider.is_primary,
                         status_message=f"Error probing provider: {str(e)}",
+                        enabled=enabled,
+                        credentials_configured=False,
+                        endpoint_masked="Configured",
+                        provider_role="Secondary Provider" if name == "openai" else "Local Runtime" if name == "ollama" else "Primary Reasoning",
                     )
                 )
         return statuses
+
+    def update_provider_config(self, provider_name: str, api_key: Optional[str] = None, model_name: Optional[str] = None, endpoint: Optional[str] = None, enabled: Optional[bool] = None) -> bool:
+        """Updates runtime configuration for a provider safely without exposing previous secrets."""
+        if provider_name not in self.providers:
+            return False
+        
+        provider = self.providers[provider_name]
+        if enabled is not None:
+            self.provider_enabled_state[provider_name] = enabled
+
+        if model_name:
+            provider.model_name = model_name
+
+        if api_key and api_key.strip():
+            if hasattr(provider, "api_key"):
+                provider.api_key = api_key.strip()
+                if provider_name == "gemini":
+                    os.environ["GEMINI_API_KEY"] = api_key.strip()
+                elif provider_name == "openai":
+                    os.environ["OPENAI_API_KEY"] = api_key.strip()
+
+        if endpoint and endpoint.strip() and hasattr(provider, "base_url"):
+            provider.base_url = endpoint.strip()
+
+        return True
 
     def get_provider(self, requested_name: Optional[str] = None) -> BaseAiProvider:
         """Selects provider with fallback to primary."""

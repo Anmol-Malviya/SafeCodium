@@ -57,4 +57,34 @@ class ProviderStatus(BaseModel):
     is_available: bool
     is_primary: bool
     status_message: str
+    enabled: bool = True
+    credentials_configured: bool = False
+    endpoint_masked: str = ""
+    provider_role: str = "Secondary"  # "Primary Reasoning", "Secondary Critic", "Local Runtime"
+
+
+class ProviderConfigureRequest(BaseModel):
+    provider_name: str
+    api_key: Optional[str] = None
+    model_name: Optional[str] = None
+    endpoint: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class RoutingSettings(BaseModel):
+    primary_provider: str = "gemini"
+    secondary_provider: str = "openai"
+    fallback_provider: str = "ollama"
+    request_timeout_seconds: int = 30
+    retry_policy_max_retries: int = 3
+    automatic_fallback_enabled: bool = True
+
+
+class AdvancedSettings(BaseModel):
+    request_timeout_seconds: int = 30
+    max_retries: int = 3
+    log_level: str = "INFO"
+    strict_bounds_enforcement: bool = True
+    cache_model_responses: bool = False
+
 

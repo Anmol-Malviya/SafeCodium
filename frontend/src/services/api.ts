@@ -192,7 +192,74 @@ export interface ProviderStatusData {
   is_available: boolean;
   is_primary: boolean;
   status_message: string;
+  enabled?: boolean;
+  credentials_configured?: boolean;
+  endpoint_masked?: string;
+  provider_role?: string;
 }
+
+export interface ProviderConfigurePayload {
+  provider_name: string;
+  api_key?: string;
+  model_name?: string;
+  endpoint?: string;
+  enabled?: boolean;
+}
+
+export interface RoutingSettingsData {
+  primary_provider: string;
+  secondary_provider: string;
+  fallback_provider: string;
+  request_timeout_seconds: number;
+  retry_policy_max_retries: number;
+  automatic_fallback_enabled: boolean;
+}
+
+export interface AdvancedSettingsData {
+  request_timeout_seconds: number;
+  max_retries: number;
+  log_level: string;
+  strict_bounds_enforcement: boolean;
+  cache_model_responses: boolean;
+}
+
+export interface LocalModelData {
+  name: string;
+  size_gb: number;
+  modified_at: string;
+  status: string;
+  enabled: boolean;
+}
+
+export const configureAiProvider = async (payload: ProviderConfigurePayload): Promise<ProviderStatusData> => {
+  const response = await api.post<ApiResponse<ProviderStatusData>>('/ai/providers/configure', payload);
+  return response.data.data;
+};
+
+export const getRoutingSettings = async (): Promise<RoutingSettingsData> => {
+  const response = await api.get<ApiResponse<RoutingSettingsData>>('/ai/routing');
+  return response.data.data;
+};
+
+export const updateRoutingSettings = async (payload: RoutingSettingsData): Promise<RoutingSettingsData> => {
+  const response = await api.post<ApiResponse<RoutingSettingsData>>('/ai/routing', payload);
+  return response.data.data;
+};
+
+export const getAdvancedSettings = async (): Promise<AdvancedSettingsData> => {
+  const response = await api.get<ApiResponse<AdvancedSettingsData>>('/ai/advanced');
+  return response.data.data;
+};
+
+export const updateAdvancedSettings = async (payload: AdvancedSettingsData): Promise<AdvancedSettingsData> => {
+  const response = await api.post<ApiResponse<AdvancedSettingsData>>('/ai/advanced', payload);
+  return response.data.data;
+};
+
+export const getLocalModels = async (): Promise<LocalModelData[]> => {
+  const response = await api.get<ApiResponse<LocalModelData[]>>('/ai/local-models');
+  return response.data.data;
+};
 
 export interface AiReasoningRequestData {
   vulnerability_id: string;
