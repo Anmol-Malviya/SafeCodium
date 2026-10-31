@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ProjectProvider } from './context/ProjectContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { ProjectUpload } from './pages/ProjectUpload';
@@ -15,26 +16,41 @@ import { SettingsPage } from './pages/SettingsPage';
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="upload" element={<ProjectUpload />} />
-          <Route path="analysis" element={<CodeAnalysis />} />
-          <Route path="scanner" element={<VulnerabilityScanner />} />
-          <Route path="vulnerabilities/:id" element={<VulnerabilityDetails />} />
-          <Route path="repair" element={<AiRepairStudio />} />
-          <Route path="diff" element={<CodeDiffReview />} />
-          <Route path="verification" element={<VerificationCenter />} />
-          <Route path="reports" element={<SecurityReports />} />
-          <Route path="history" element={<ProjectHistory />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ProjectProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            {/* Step 1: Ingest Firmware */}
+            <Route index element={<Navigate to="/upload" replace />} />
+            <Route path="upload" element={<ProjectUpload />} />
+            
+            {/* Step 2: Static Scanner & Context Analytics */}
+            <Route path="scanner" element={<VulnerabilityScanner />} />
+            <Route path="analysis" element={<CodeAnalysis />} />
+            <Route path="vulnerabilities/:id" element={<VulnerabilityDetails />} />
+
+            {/* Step 3: AI Repair Studio */}
+            <Route path="repair" element={<AiRepairStudio />} />
+
+            {/* Step 4: Code Diff & Independent Critique */}
+            <Route path="diff" element={<CodeDiffReview />} />
+
+            {/* Step 5: Ground-Truth Verification */}
+            <Route path="verification" element={<VerificationCenter />} />
+
+            {/* Step 6: Security Reports & Cryptographic Passport */}
+            <Route path="reports" element={<SecurityReports />} />
+
+            {/* Auxiliary Pages */}
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="history" element={<ProjectHistory />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/upload" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ProjectProvider>
   );
 };
 
 export default App;
-
