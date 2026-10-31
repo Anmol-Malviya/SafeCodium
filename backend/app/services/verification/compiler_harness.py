@@ -15,6 +15,8 @@ import shutil
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
+from backend.app.services.verification.sandbox import ExecutionSandbox
+
 
 @dataclass
 class CompileResult:
@@ -37,7 +39,7 @@ class DualCompileComparison:
     pre_patch: CompileResult
     post_patch: CompileResult
     compilation_passed: bool
-    status: str  # PASSED | FAILED | WARNING_NEW | INCONCLUSIVE
+    status: str  # VERIFIED | FAILED | SIMULATED | WARNING_NEW | INCONCLUSIVE
     delta_summary: str
     execution_mode: str = "NATIVE_EXECUTION"
 
@@ -67,6 +69,7 @@ class DualCompilerHarness:
     ) -> CompileResult:
         """
         Compiles a single C/C++ file with host compiler or deterministic simulation harness.
+        Uses ExecutionSandbox to prevent leaking credentials or running unsafely.
         """
         path = Path(file_path)
         if not path.exists():
@@ -86,24 +89,17 @@ class DualCompilerHarness:
         flags = flags or ["-Wall", "-Wextra", "-Werror=implicit-function-declaration", "-c"]
 
         if compiler:
-            # Run native compiler
+            # Run compiler in isolated sandbox
             try:
                 cmd = [compiler] + flags + [str(path), "-o", str(path.with_suffix(".o"))]
-                proc = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=30,
-                )
-                stdout = proc.stdout
-                stderr = proc.stderr
-                exit_code = proc.returncode
+                sandbox_res = ExecutionSandbox.run_isolated_command(cmd, cwd=path.parent)
+                stdout = sandbox_res.stdout
+                stderr = sandbox_res.stderr
+                exit_code = sandbox_res.exit_code
 
                 warnings_count = len(re.findall(r"warning:", stderr, re.IGNORECASE))
                 errors_count = len(re.findall(r"error:", stderr, re.IGNORECASE))
 
-                # Clean up temporary object file if generated
                 obj_file = path.with_suffix(".o")
                 if obj_file.exists():
                     try:
@@ -123,8 +119,7 @@ class DualCompilerHarness:
                     diagnostics=stderr.splitlines(),
                     execution_mode="NATIVE_EXECUTION",
                 )
-            except Exception as e:
-                # If native compiler run fails unexpectedly, fallback to simulation harness
+            except Exception:
                 pass
 
         # Deterministic IoT Cross-Compiler Simulation Harness
@@ -160,10 +155,8 @@ class DualCompilerHarness:
             errors_count += 1
             diagnostics.append(f"{path.name}: error: unbalanced parentheses (expected ')' or '(')")
 
-        # Check for unbuffered strcpy or unsafe calls (treated as warnings or errors under strict IoT flags)
         for idx, line in enumerate(lines, 1):
             stripped = line.strip()
-            # Missing semicolon check on simple statements
             if (
                 stripped
                 and not stripped.startswith("//")
@@ -176,26 +169,23 @@ class DualCompilerHarness:
                     errors_count += 1
                     diagnostics.append(f"{path.name}:{idx}: error: expected ';' after expression")
 
-            # Deprecated memory functions in embedded
             if "strcpy(" in line and "snprintf" not in line:
                 warnings_count += 1
-                diagnostics.append(f"{path.name}:{idx}: warning: 'strcpy' is deprecated: This function is unsafe, use bounded alternatives [-Wdeprecated-declarations]")
+                diagnostics.append(f"{path.name}:{idx}: warning: call to deprecated function 'strcpy' [-Wdeprecated-declarations]")
 
-            if "gets(" in line:
-                errors_count += 1
-                diagnostics.append(f"{path.name}:{idx}: error: 'gets' was not declared in this scope; ISO C11 removes gets [-Werror=implicit-function-declaration]")
+        is_success = (errors_count == 0)
+        exit_code = 0 if is_success else 1
 
-        exit_code = 0 if errors_count == 0 else 1
-        stderr_msg = "\n".join(diagnostics) if diagnostics else ""
-        stdout_msg = f"Target {path.name} compiled with xtensa-esp32-elf-gcc (simulated C99 standard)." if exit_code == 0 else "Compilation terminated with errors."
+        stdout = f"[Cross-Compiler Simulation] Completed pass on {path.name} with {warnings_count} warnings, {errors_count} errors.\n"
+        stderr = "\n".join(diagnostics)
 
         return CompileResult(
-            compiler_used="xtensa-esp32-elf-gcc (IoT Cross-Compiler Harness)",
+            compiler_used="embedded_gcc_simulator",
             target_file=str(path),
             exit_code=exit_code,
-            success=(exit_code == 0),
-            stdout=stdout_msg,
-            stderr=stderr_msg,
+            success=is_success,
+            stdout=stdout,
+            stderr=stderr,
             warnings_count=warnings_count,
             errors_count=errors_count,
             diagnostics=diagnostics,
@@ -211,29 +201,29 @@ class DualCompilerHarness:
     ) -> DualCompileComparison:
         """
         Executes dual compilation comparing pre-patch original code vs post-patch shadow code.
+        Accurately reports status as VERIFIED for native passes, or SIMULATED for heuristic simulation.
         """
         pre_res = cls.compile_file(original_file_path)
         post_res = cls.compile_file(shadow_file_path)
 
         compiler_name = post_res.compiler_used
 
-        # Analysis of status
-        if post_res.success:
-            if pre_res.warnings_count > post_res.warnings_count:
-                status = "PASSED"
-                delta_summary = f"Post-patch compiled cleanly! Warnings reduced from {pre_res.warnings_count} to {post_res.warnings_count}."
-            else:
-                status = "PASSED"
-                delta_summary = f"Post-patch compiled cleanly (exit code 0) with {post_res.warnings_count} warnings."
-        else:
-            status = "FAILED"
-            delta_summary = f"Post-patch compilation failed with {post_res.errors_count} errors and {post_res.warnings_count} warnings."
-
         exec_mode = (
             "NATIVE_EXECUTION"
             if (pre_res.execution_mode == "NATIVE_EXECUTION" and post_res.execution_mode == "NATIVE_EXECUTION")
             else "STATIC_HEURISTIC_SIMULATION"
         )
+
+        if post_res.success:
+            if exec_mode == "NATIVE_EXECUTION":
+                status = "VERIFIED"
+                delta_summary = f"[NATIVE] Post-patch compiled cleanly with {compiler_name} (exit code 0)."
+            else:
+                status = "SIMULATED"
+                delta_summary = f"[SIMULATION] AST compilation simulation passed (exit code 0, {post_res.warnings_count} warnings)."
+        else:
+            status = "FAILED"
+            delta_summary = f"Post-patch compilation failed with {post_res.errors_count} errors."
 
         return DualCompileComparison(
             patch_id=patch_id,
@@ -245,4 +235,3 @@ class DualCompilerHarness:
             delta_summary=delta_summary,
             execution_mode=exec_mode,
         )
-

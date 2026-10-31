@@ -31,9 +31,19 @@ class Settings(BaseSettings):
                 return True
             elif v_lower in ("false", "0", "no", "off", "f", "n"):
                 return False
-            # Default to False if string is an unparseable log level or trace filter (e.g. 'WARN')
             return False
         return bool(v)
+
+    # Security & Authentication
+    SECRET_KEY: str = Field(default="safevibe-secure-auth-secret-key-production-change-2026")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ADMIN_API_KEY: str = Field(default="")
+    ALLOW_LOCAL_AI_ENDPOINTS: bool = True
+
+    # Sandboxing & Execution Isolation
+    ENABLE_SANDBOX: bool = True
+    SANDBOX_TIMEOUT_SECONDS: int = 30
+    SANDBOX_MAX_MEMORY_MB: int = 256
 
     # CORS
     CORS_ORIGINS: List[str] = [

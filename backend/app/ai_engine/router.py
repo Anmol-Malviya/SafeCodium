@@ -6,6 +6,7 @@ from backend.app.ai_engine.base import BaseAiProvider
 from backend.app.ai_engine.gemini_provider import GeminiProvider
 from backend.app.ai_engine.ollama_provider import OllamaProvider
 from backend.app.ai_engine.openai_provider import OpenAIProvider
+from backend.app.ai_engine.custom_provider import CustomTrainedProvider
 from backend.app.ai_engine.schemas import (
     AiPatchRequest,
     AiPatchResponse,
@@ -15,6 +16,7 @@ from backend.app.ai_engine.schemas import (
 )
 from backend.app.core.config import settings
 from backend.app.core.logging import logger
+from backend.app.core.ssrf import validate_provider_url, SSRFValidationError
 
 
 class AiRouter:
@@ -25,11 +27,13 @@ class AiRouter:
             "gemini": GeminiProvider(),
             "openai": OpenAIProvider(),
             "ollama": OllamaProvider(),
+            "custom_trained": CustomTrainedProvider(),
         }
         self.provider_enabled_state: Dict[str, bool] = {
             "gemini": True,
             "openai": True,
             "ollama": True,
+            "custom_trained": False,
         }
         self.routing_settings = {
             "primary_provider": "gemini",
@@ -57,16 +61,20 @@ class AiRouter:
                 status.enabled = enabled
                 if name == "gemini":
                     status.credentials_configured = bool(getattr(provider, "api_key", False))
-                    status.endpoint_masked = "Configured"
+                    status.endpoint_masked = "Google GenAI API"
                     status.provider_role = "Primary Reasoning"
                 elif name == "openai":
                     status.credentials_configured = bool(getattr(provider, "api_key", False))
-                    status.endpoint_masked = "Configured"
+                    status.endpoint_masked = "OpenAI API"
                     status.provider_role = "Secondary Provider"
-                else:
+                elif name == "ollama":
                     status.credentials_configured = True
-                    status.endpoint_masked = "Configured"
+                    status.endpoint_masked = getattr(provider, "base_url", "http://localhost:11434")
                     status.provider_role = "Local Runtime"
+                elif name == "custom_trained":
+                    status.credentials_configured = False
+                    status.endpoint_masked = "Modular Interface"
+                    status.provider_role = "Trained / Fine-Tuned (Modular)"
                 statuses.append(status)
             except Exception as e:
                 statuses.append(
@@ -79,16 +87,23 @@ class AiRouter:
                         enabled=enabled,
                         credentials_configured=False,
                         endpoint_masked="Configured",
-                        provider_role="Secondary Provider" if name == "openai" else "Local Runtime" if name == "ollama" else "Primary Reasoning",
+                        provider_role="Provider",
                     )
                 )
         return statuses
 
-    def update_provider_config(self, provider_name: str, api_key: Optional[str] = None, model_name: Optional[str] = None, endpoint: Optional[str] = None, enabled: Optional[bool] = None) -> bool:
-        """Updates runtime configuration for a provider safely without exposing previous secrets."""
+    def update_provider_config(
+        self,
+        provider_name: str,
+        api_key: Optional[str] = None,
+        model_name: Optional[str] = None,
+        endpoint: Optional[str] = None,
+        enabled: Optional[bool] = None,
+    ) -> bool:
+        """Updates runtime configuration for a provider safely with SSRF defense."""
         if provider_name not in self.providers:
             return False
-        
+
         provider = self.providers[provider_name]
         if enabled is not None:
             self.provider_enabled_state[provider_name] = enabled
@@ -104,15 +119,23 @@ class AiRouter:
                 elif provider_name == "openai":
                     os.environ["OPENAI_API_KEY"] = api_key.strip()
 
-        if endpoint and endpoint.strip() and hasattr(provider, "base_url"):
-            provider.base_url = endpoint.strip()
+        if endpoint and endpoint.strip():
+            # Validate URL for SSRF protection
+            validated_url = validate_provider_url(
+                endpoint.strip(),
+                allow_local=settings.ALLOW_LOCAL_AI_ENDPOINTS,
+            )
+            if hasattr(provider, "base_url"):
+                provider.base_url = validated_url
+            elif hasattr(provider, "endpoint"):
+                provider.endpoint = validated_url
 
         return True
 
     def get_provider(self, requested_name: Optional[str] = None) -> BaseAiProvider:
         """Selects provider with fallback to primary."""
         name = (requested_name or settings.DEFAULT_AI_PROVIDER).lower()
-        if name in self.providers:
+        if name in self.providers and self.provider_enabled_state.get(name, True):
             return self.providers[name]
         return self.providers["gemini"]
 
@@ -130,4 +153,3 @@ class AiRouter:
 
 
 ai_router = AiRouter()
-

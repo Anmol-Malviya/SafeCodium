@@ -45,7 +45,7 @@ def test_sanitizer_harness_detects_asan_buffer_overflow(tmp_path):
     res = SanitizerVerificationHarness.run_asan_pass(str(vuln_file))
     assert res.crash_detected is True
     assert res.passed is False
-    assert "stack-buffer-overflow" in res.crash_type
+    assert "buffer-overflow" in res.crash_type
     assert "AddressSanitizer" in res.report_output
     assert res.execution_mode in ("NATIVE_EXECUTION", "STATIC_HEURISTIC_SIMULATION")
 

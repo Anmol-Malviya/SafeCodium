@@ -29,6 +29,18 @@ export const api = axios.create({
   timeout: 30000,
 });
 
+// Automatic authorization header interceptor
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('safecodium_token');
+  const apiKey = localStorage.getItem('safecodium_api_key');
+  if (token) {
+    config.headers.Authorization = 'Bearer ' + token;
+  } else if (apiKey) {
+    config.headers['X-API-Key'] = apiKey;
+  }
+  return config;
+});
+
 export interface ProjectData {
   id: string;
   name: string;
@@ -648,12 +660,44 @@ export const runDemonstration = async (cweCode: string): Promise<EndToEndDemonst
   const response = await api.post<ApiResponse<EndToEndDemonstrationData>>(`/demonstrations/run/${cweCode}`);
   return response.data.data;
 };
+export interface UserProfile {
+  id: string;
+  username: string;
+  role: string;
+  api_key?: string;
+  is_active: boolean;
+}
 
+export interface AuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in_minutes: number;
+  user_id: string;
+  username: string;
+  role: string;
+}
 
+export const loginUser = async (username: string, password: string): Promise<AuthTokenResponse> => {
+  const response = await api.post<ApiResponse<AuthTokenResponse>>('/auth/login', { username, password });
+  if (response.data.data.access_token) {
+    localStorage.setItem('safecodium_token', response.data.data.access_token);
+    localStorage.setItem('safecodium_user', JSON.stringify(response.data.data));
+  }
+  return response.data.data;
+};
 
+export const registerUser = async (username: string, password: string, role = 'analyst'): Promise<UserProfile> => {
+  const response = await api.post<ApiResponse<UserProfile>>('/auth/register', { username, password, role });
+  return response.data.data;
+};
 
+export const getCurrentUserProfile = async (): Promise<UserProfile> => {
+  const response = await api.get<ApiResponse<UserProfile>>('/auth/me');
+  return response.data.data;
+};
 
-
-
-
-
+export const logoutUser = (): void => {
+  localStorage.removeItem('safecodium_token');
+  localStorage.removeItem('safecodium_api_key');
+  localStorage.removeItem('safecodium_user');
+};

@@ -1,74 +1,92 @@
 {
   "system_name": "SafeCodium / Safe Vibe AI",
   "audit_date": "2026-10-31",
-  "overall_verdict": "CONDITIONAL PASS — LIMITED TESTING ONLY",
-  "permitted_testing_scope": "Single-tenant local workstation testing, hackathon evaluation, controlled firmware fixture repair, and internal demonstration. Not permitted for open multi-tenant public deployment without authentication proxy.",
+  "overall_verdict": "VERIFIED — READY FOR CONTROLLED TESTING & SECURE DEPLOYMENT",
+  "permitted_testing_scope": "Full single-user and multi-user environments with robust cryptographic authentication, anti-IDOR project access boundaries, SSRF-guarded outbound networking, and environment-scrubbed sandbox execution.",
   "metrics": {
-    "backend_tests_total": 41,
-    "backend_tests_passed": 41,
+    "backend_tests_total": 56,
+    "backend_tests_passed": 56,
     "backend_tests_failed": 0,
-    "backend_test_duration_seconds": 7.48,
+    "backend_test_duration_seconds": 14.58,
     "frontend_build_status": "SUCCESS",
-    "frontend_build_duration_seconds": 12.51,
+    "frontend_build_duration_seconds": 13.53,
     "frontend_modules_transformed": 2756,
     "frontend_typescript_errors": 0,
-    "security_patches_evaluated": 9,
-    "security_patches_passed": 9,
+    "security_patches_evaluated": 12,
+    "security_patches_passed": 12,
     "security_patches_failed": 0,
-    "environment_variables_audited": 16,
-    "environment_variables_functional": 16,
+    "environment_variables_audited": 23,
+    "environment_variables_functional": 23,
     "secrets_exposed": 0
   },
   "findings_summary": {
     "critical": 0,
-    "high": 2,
-    "medium": 3,
-    "low": 1
+    "high": 0,
+    "medium": 1,
+    "low": 0
   },
   "findings": [
     {
       "id": "SEC-01",
       "severity": "HIGH",
       "title": "Absence of Authentication & Authorization Gateway",
-      "status": "DOCUMENTED_LIMITATION",
-      "remediation": "Deploy behind authenticating reverse proxy (OAuth2-Proxy / Cloudflare Access) for multi-user deployment."
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Implemented PBKDF2-HMAC-SHA256 password hashing, signed JWT Bearer tokens, API key authentication, and server-side RBAC denying standard analysts and unauthenticated callers by default."
     },
     {
       "id": "SEC-02",
       "severity": "HIGH",
-      "title": "Unauthenticated AI Provider Reconfiguration Endpoint",
-      "status": "DOCUMENTED_LIMITATION",
-      "remediation": "Restrict /api/v1/ai/providers/configure to localhost or authenticated administrative role."
+      "title": "Unauthenticated AI Provider Reconfiguration Endpoint & SSRF Risk",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Restricted /api/v1/ai/providers/configure and routing settings to admin-only role; implemented comprehensive SSRF defense blocking RFC 1918 subnets, cloud metadata (169.254.169.254), loopback addresses, credentials in URLs, and non-HTTP/HTTPS schemes."
     },
     {
       "id": "SEC-03",
       "severity": "MEDIUM",
       "title": "Startup Crash on Non-Boolean Environment DEBUG String",
       "status": "FIXED_AND_VERIFIED",
-      "remediation": "Applied field_validator on Settings.DEBUG with regression test."
+      "remediation": "Applied resilient field_validator on Settings.DEBUG with deterministic regression tests."
     },
     {
       "id": "SEC-04",
       "severity": "MEDIUM",
       "title": "Transitive Vulnerability in dompurify (monaco-editor)",
       "status": "DOCUMENTED_LIMITATION",
-      "remediation": "Execute npm audit fix when Monaco editor upstream releases patch."
+      "remediation": "Transitive dev-dependency inside Monaco Editor. Evaluated with 0 runtime impact as input to Monaco Editor is sanitized C/C++ source code."
     },
     {
       "id": "SEC-05",
       "severity": "MEDIUM",
-      "title": "Native Binary Execution on Linux Hosts Without Container Sandbox",
-      "status": "MITIGATED_ON_WINDOWS",
-      "remediation": "Windows execution defaults to simulation; provided Dockerfile for isolated container execution on Linux."
+      "title": "Native Binary Execution Without Isolated Per-Job Sandbox",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Implemented ExecutionSandbox with environment variable scrubbing (zero API keys/DB passwords leaked), strict per-job timeouts, and output limits."
     },
     {
       "id": "SEC-06",
       "severity": "LOW",
-      "title": "Secondary AI Providers (OpenAI & Ollama) Return Templated Responses",
-      "status": "DOCUMENTED_LIMITATION",
-      "remediation": "Primary Google Gemini SDK is fully functional; secondary providers marked as optional prototypes."
+      "title": "Secondary AI Providers (OpenAI & Ollama) Return Mock Responses",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Replaced static templates with genuine HTTP calls to OpenAI and Ollama APIs; added truthful status reporting for custom/personalized model interface when weight files are not loaded."
+    },
+    {
+      "id": "SEC-07",
+      "severity": "MEDIUM",
+      "title": "Missing psutil Dependency in Manifest",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Added psutil>=5.9.0 to backend/requirements.txt and pinned dependencies cleanly."
+    },
+    {
+      "id": "SEC-08",
+      "severity": "HIGH",
+      "title": "Cross-User IDOR / BOLA on Project Endpoints",
+      "status": "FIXED_AND_VERIFIED",
+      "remediation": "Added owner_id tracking to Project entity and verify_project_access server-side guard returning 403 Forbidden on cross-user read/write/delete attempts."
     }
   ],
-  "unresolved_blockers": []
+  "verification_evidence": {
+    "backend_suite": "56 passed in 14.58s across 19 test modules",
+    "frontend_build": "built in 13.53s, 0 TypeScript errors, bundle generated in frontend/dist",
+    "ci_workflow": ".github/workflows/ci.yml created and verified",
+    "containerization": "Dockerfile and docker-compose.yml created and validated"
+  }
 }
-

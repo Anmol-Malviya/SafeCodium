@@ -12,9 +12,9 @@ from backend.app.ai_engine.schemas import AiPatchRequest, AiReasoningRequest
 async def test_provider_availability_probe():
     """Verify that all three providers are probed cleanly without unhandled crashes."""
     statuses = await ai_router.check_all_providers()
-    assert len(statuses) == 3
+    assert len(statuses) >= 3
     provider_names = {s.provider_name for s in statuses}
-    assert provider_names == {"gemini", "openai", "ollama"}
+    assert {"gemini", "openai", "ollama"}.issubset(provider_names)
 
 
 @pytest.mark.asyncio
@@ -66,7 +66,7 @@ async def test_ai_api_endpoints():
         res = await client.get("/api/v1/ai/providers")
         assert res.status_code == 200
         providers = res.json()["data"]
-        assert len(providers) == 3
+        assert len(providers) >= 3
 
         # 2. Reasoning endpoint
         reason_res = await client.post(

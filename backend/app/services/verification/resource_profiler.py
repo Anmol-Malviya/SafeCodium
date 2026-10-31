@@ -8,8 +8,6 @@ Enforces embedded microcontroller constraints:
 - Minimal Stack frame expansion (prevents ISR stack overflow).
 
 Follows AGENTS.md Rule 6: Ground-Truth Verification Authority.
-When all 4 stages pass (Compiler=0, ASan=0, Regression=100%, Footprint=Safe),
-promotes final verification status to `VERIFIED`.
 """
 
 from dataclasses import dataclass, field
@@ -43,8 +41,8 @@ class ResourceProfileResult:
 
 class ResourceProfiler:
     """
-    Simulates embedded ELF section analyzer (`size -A` / `objdump -h` format)
-    calculating exact code footprint adjustments.
+    Estimates embedded ELF section sizes (`size -A` / `objdump -h` format)
+    calculating code footprint adjustments based on static heuristics.
     """
 
     @classmethod
@@ -52,24 +50,19 @@ class ResourceProfiler:
         """
         Estimates C embedded memory footprint based on instructions, buffers, and string literals.
         """
-        # Baseline minimal firmware runtime footprint
         base_text = 4096
         base_data = 128
         base_bss = 512
 
-        # Count functions and instructions
         functions_count = len(re.findall(r"\b(?:void|int|uint\d+_t|bool|char)\s+[a-zA-Z_]\w*\s*\(", source_code))
         statements_count = source_code.count(";")
 
-        # Count buffer declarations (e.g. char buf[32];)
         buffer_matches = re.findall(r"\b(?:char|uint8_t|int8_t)\s+\w+\[(\d+)\]", source_code)
         buffer_bytes = sum(int(b) for b in buffer_matches) if buffer_matches else 0
 
-        # String literals add to .rodata (Flash)
         string_literals = re.findall(r'"([^"\\]*(?:\\.[^"\\]*)*)"', source_code)
         string_bytes = sum(len(s) + 1 for s in string_literals)
 
-        # Extra instruction overhead for defensive branches & snprintf
         extra_inst = 0
         if "snprintf" in source_code:
             extra_inst += 48
@@ -110,12 +103,11 @@ class ResourceProfiler:
         flash_pct = round((flash_delta / pre_metrics.total_flash_bytes) * 100, 2)
         ram_pct = round((ram_delta / pre_metrics.total_ram_bytes) * 100, 2)
 
-        # Embedded constraints: Flash delta should be reasonable (< 256 bytes) and RAM should not inflate
         is_safe = (flash_delta <= 256) and (ram_delta <= 64)
 
         if is_safe:
             verdict = "VERIFIED"
-            summary = f"Resource profile verified: Flash delta +{flash_delta} bytes (+{flash_pct}%), RAM delta {ram_delta:+d} bytes. Zero heap expansion; strictly conforms to IoT microcontroller memory limits."
+            summary = f"[SIMULATED ESTIMATE] Resource footprint check passed: Flash delta +{flash_delta} bytes (+{flash_pct}%), RAM delta {ram_delta:+d} bytes. Zero heap expansion."
         else:
             verdict = "REJECTED"
             summary = f"Resource budget exceeded: Flash delta +{flash_delta} bytes exceeded 256-byte constraint."
@@ -132,4 +124,3 @@ class ResourceProfiler:
             verdict=verdict,
             summary=summary,
         )
-

@@ -1,6 +1,7 @@
 """Safe Vibe AI — API v1 Router Aggregator."""
 
 from fastapi import APIRouter
+from backend.app.api.v1.auth import router as auth_router
 from backend.app.api.v1.health import router as health_router
 from backend.app.api.v1.projects import router as projects_router
 from backend.app.api.v1.scans import router as scans_router
@@ -14,6 +15,7 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.demonstrations import router as demonstrations_router
 
 api_router = APIRouter(prefix="/v1")
+api_router.include_router(auth_router, tags=["Authentication & Identity"])
 api_router.include_router(health_router, tags=["Health & Diagnostics"])
 api_router.include_router(projects_router, tags=["Project Ingestion"])
 api_router.include_router(scans_router, tags=["Vulnerability Scanning"])
@@ -25,4 +27,3 @@ api_router.include_router(verification_router, tags=["Dual Compilation & Verific
 api_router.include_router(reports_router, tags=["Security Assurance & Audit Passports"])
 api_router.include_router(analytics_router, tags=["Full-Stack System Analytics & Pipeline"])
 api_router.include_router(demonstrations_router, tags=["End-to-End Vulnerability Demonstrations"])
-

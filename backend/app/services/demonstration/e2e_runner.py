@@ -210,6 +210,7 @@ class EndToEndDemonstrator:
             patch_id=patch_record.id,
             original_file_path=str(orig_file),
             shadow_file_path=str(shadow_file),
+            target_cwe=target_vuln.cwe_id,
         )
         stages.append(
             DemoStageReport(

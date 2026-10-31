@@ -24,6 +24,7 @@ class Project(Base, TimestampMixin):
     shadow_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     file_count: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    owner_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
 
     # Relationships
     scans: Mapped[List["Scan"]] = relationship("Scan", back_populates="project", cascade="all, delete-orphan")
@@ -103,8 +104,7 @@ class Verification(Base, TimestampMixin):
     test_suite_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     test_results_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     binary_size_delta_bytes: Mapped[int] = mapped_column(Integer, default=0)
-    final_status: Mapped[str] = mapped_column(String(32), default="INCONCLUSIVE")  # VERIFIED, REJECTED, INCONCLUSIVE
+    final_status: Mapped[str] = mapped_column(String(32), default="INCONCLUSIVE")  # VERIFIED, FAILED, PARTIAL, SIMULATED, NOT_AVAILABLE, INCONCLUSIVE
 
     # Relationships
     patch: Mapped["Patch"] = relationship("Patch", back_populates="verification")
-

@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.auth import get_current_user, verify_project_access
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.models.project import Project
+from backend.app.models.user import User
 from backend.app.schemas.common import ApiResponse, ProjectResponse
 from backend.app.services.ingestion.extractor import safe_extract_zip, IngestionSecurityError, MAX_UNCOMPRESSED_SIZE_BYTES
 from backend.app.services.ingestion.workspace import WorkspaceManager
@@ -25,12 +27,13 @@ MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB max request size
 async def upload_project(
     name: Optional[str] = Form(None),
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Ingests a C/C++ firmware archive (.zip) or single source file.
     Applies Zip-Slip protection, symlink rejection, provisions shadow workspace,
-    enforces read-only permissions on original, and indexes source files.
+    enforces read-only permissions on original, tracks user ownership, and indexes source files.
     """
     project_id = str(uuid.uuid4())
     project_name = name or Path(file.filename or "firmware_project").stem
@@ -39,12 +42,10 @@ async def upload_project(
     raw_filename = Path(file.filename or "upload").name
     file_ext = Path(raw_filename).suffix.lower()
 
-    # Use cryptographically random server-side temporary file
     random_token = secrets.token_hex(8)
     temp_upload_path = settings.DATA_DIR / f"temp_{random_token}_{raw_filename}"
 
     try:
-        # Stream upload with size enforcement
         bytes_read = 0
         with open(temp_upload_path, "wb") as buffer:
             while chunk := await file.read(65536):
@@ -57,7 +58,6 @@ async def upload_project(
                 buffer.write(chunk)
 
         if file_ext == ".zip":
-            # Safely extract with Zip-Slip defense and symlink rejection
             safe_extract_zip(temp_upload_path, original_dir)
             source_type = "zip"
 
@@ -75,17 +75,11 @@ async def upload_project(
                 detail=f"Unsupported file format '{file_ext}'. Upload a .zip archive or C/C++ source file."
             )
 
-        # Clone original to shadow workspace for patch experimentation
         WorkspaceManager.sync_to_shadow(original_dir, shadow_dir)
-
-        # Protect original workspace files (mark as read-only at OS level)
         WorkspaceManager.protect_original_workspace(original_dir)
-
-        # Detect framework and index files
         framework_type = WorkspaceManager.detect_framework_type(original_dir)
         indexed_files = WorkspaceManager.index_source_files(original_dir)
 
-        # Persist project entity
         project = Project(
             id=project_id,
             name=project_name,
@@ -95,6 +89,7 @@ async def upload_project(
             original_path=str(original_dir),
             shadow_path=str(shadow_dir),
             file_count=len(indexed_files),
+            owner_id=current_user.id,
         )
         db.add(project)
         await db.commit()
@@ -128,14 +123,24 @@ async def upload_project(
             detail=f"Failed to ingest project: {str(e)}",
         )
     finally:
-        # Always remove temporary upload artifact
         temp_upload_path.unlink(missing_ok=True)
 
 
 @router.get("", response_model=ApiResponse[List[ProjectResponse]])
-async def list_projects(db: AsyncSession = Depends(get_db)):
-    """Lists all ingested firmware projects."""
-    result = await db.execute(select(Project).order_by(Project.created_at.desc()))
+async def list_projects(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lists ingested firmware projects with tenant segregation."""
+    if current_user.role == "admin":
+        stmt = select(Project).order_by(Project.created_at.desc())
+    else:
+        stmt = (
+            select(Project)
+            .where((Project.owner_id == current_user.id) | (Project.owner_id == None))
+            .order_by(Project.created_at.desc())
+        )
+    result = await db.execute(stmt)
     projects = result.scalars().all()
     return ApiResponse(
         success=True,
@@ -145,12 +150,18 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{project_id}", response_model=ApiResponse[ProjectResponse])
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
-    """Retrieves metadata for a specific project."""
+async def get_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieves metadata for a specific project with IDOR protection."""
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
 
     return ApiResponse(
         success=True,
@@ -160,12 +171,18 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{project_id}/files")
-async def get_project_files(project_id: str, db: AsyncSession = Depends(get_db)):
-    """Returns list of indexed C/C++ files inside the project."""
+async def get_project_files(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns list of indexed C/C++ files inside the project with IDOR protection."""
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
 
     original_dir = Path(project.original_path)
     if not original_dir.exists():
@@ -183,16 +200,19 @@ async def get_project_files(project_id: str, db: AsyncSession = Depends(get_db))
 async def get_file_content(
     project_id: str,
     path: str,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Reads the content of a specific source file safely.
-    Path traversal is strictly prevented.
+    Path traversal is strictly prevented and user authorization is enforced.
     """
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
 
     original_dir = Path(project.original_path).resolve()
     target_path = (original_dir / path).resolve()
@@ -210,3 +230,34 @@ async def get_file_content(
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to read file: {e}")
+
+
+@router.delete("/{project_id}", response_model=ApiResponse[dict])
+async def delete_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deletes an ingested project and its shadow workspace with IDOR protection."""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
+
+    # Cleanup disk workspaces
+    if project.original_path:
+        WorkspaceManager.unprotect_original_workspace(Path(project.original_path))
+        shutil.rmtree(Path(project.original_path).parent, ignore_errors=True)
+    if project.shadow_path:
+        shutil.rmtree(Path(project.shadow_path).parent, ignore_errors=True)
+
+    await db.delete(project)
+    await db.commit()
+
+    return ApiResponse(
+        success=True,
+        message=f"Project '{project.name}' deleted successfully",
+        data={"deleted_project_id": project_id},
+    )
