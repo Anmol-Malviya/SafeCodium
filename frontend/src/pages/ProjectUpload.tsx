@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Upload,
+  UploadCloud,
   FolderArchive,
   CheckCircle2,
   AlertCircle,
   Loader2,
   ArrowRight,
   ShieldCheck,
-  HardDrive,
-  Sparkles,
   Zap,
   Play,
+  FileCode,
 } from 'lucide-react';
 import { uploadProject, listProjects, runDemonstration, ProjectData } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +51,7 @@ export const ProjectUpload: React.FC = () => {
 
     try {
       const project = await uploadProject(file);
-      setSuccessMessage(`Ingested "${project.name}" (${project.file_count} C/C++ files indexed).`);
+      setSuccessMessage(`Uploaded "${project.name}" (${project.file_count} files).`);
       setActiveProjectId(project.id);
       await fetchProjects();
       await refreshGlobalProjects();
@@ -73,13 +72,12 @@ export const ProjectUpload: React.FC = () => {
     setSuccessMessage(null);
     try {
       const demoRes = await runDemonstration(cwe);
-      setSuccessMessage(`Demo project created for ${cwe}! Directing to scanning & fix.`);
+      setSuccessMessage(`Loaded ${cwe} demo fixture.`);
       await fetchProjects();
       await refreshGlobalProjects();
       if (demoRes?.demonstration_id) {
         setActiveProjectId(demoRes.demonstration_id);
       }
-      // Advance to Step 2
       setCurrentStepIndex(2);
       navigate('/scanner');
     } catch (err: any) {
@@ -96,44 +94,38 @@ export const ProjectUpload: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      {/* Header section with clean status badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
+    <div className="max-w-4xl mx-auto space-y-6 py-2">
+      {/* Title & Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              Step 1 of 6
-            </span>
-            <span className="text-xs font-semibold text-slate-500">Pipeline Ingestion</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-1">Upload Firmware or Select Demo</h1>
-          <p className="text-sm text-slate-500">
-            Ingest your C/C++ firmware archive or launch a 1-click verified IoT fixture.
+          <h1 className="text-xl font-semibold text-slate-900 tracking-tight">Ingest Firmware</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Upload C/C++ firmware archive or launch a verified test fixture.
           </p>
         </div>
 
-        {/* 1-Click Fast Demonstrations */}
+        {/* Minimal Demo Triggers */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => handleLaunchQuickDemo('CWE-120')}
             disabled={isRunningDemo || isUploading}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold shadow-xs transition"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition shadow-2xs"
           >
-            {isRunningDemo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-            <span>1-Click CWE-120 Demo</span>
+            {isRunningDemo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 text-amber-600" />}
+            <span>CWE-120 Demo</span>
           </button>
           <button
             onClick={() => handleLaunchQuickDemo('CWE-476')}
             disabled={isRunningDemo || isUploading}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-bold shadow-xs transition"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition shadow-2xs"
           >
-            {isRunningDemo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            <span>1-Click CWE-476 Demo</span>
+            {isRunningDemo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3 h-3 text-indigo-600" />}
+            <span>CWE-476 Demo</span>
           </button>
         </div>
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -142,100 +134,86 @@ export const ProjectUpload: React.FC = () => {
         className="hidden"
       />
 
-      {/* Upload Dropzone */}
+      {/* Minimal Upload Box */}
       <div
         onClick={() => !isUploading && fileInputRef.current?.click()}
-        className={`p-10 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center space-y-4 cursor-pointer bg-white shadow-xs ${
+        className={`p-8 rounded-xl border border-dashed transition-all flex flex-col items-center justify-center text-center space-y-2.5 cursor-pointer bg-white ${
           isUploading
-            ? 'border-indigo-500 bg-indigo-50/40 pointer-events-none'
-            : 'border-slate-300 hover:border-indigo-500 hover:bg-slate-50/60'
+            ? 'border-indigo-400 bg-indigo-50/20 pointer-events-none'
+            : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50/50'
         }`}
       >
-        <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-xs">
-          {isUploading ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+          {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-600" /> : <UploadCloud className="w-5 h-5" />}
         </div>
 
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-slate-800">
-            {isUploading ? 'Ingesting, Unpacking & Creating Shadow Workspace...' : 'Click to upload or drag & drop C/C++ firmware files'}
+        <div>
+          <p className="text-xs font-semibold text-slate-800">
+            {isUploading ? 'Extracting & creating shadow workspace...' : 'Drop firmware archive or click to browse'}
           </p>
-          <p className="text-xs text-slate-400">
-            Supports: .zip, .tar.gz firmware archives or single .c, .cpp, .h source files (Auto Zip-Slip Defense)
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            Supports .zip, .tar.gz, .c, .cpp, .h (Zip-Slip protected)
           </p>
-        </div>
-
-        <div className="flex items-center space-x-4 pt-2 text-[11px] text-slate-500">
-          <span className="flex items-center space-x-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Zip-Slip Traversal Defended</span>
-          </span>
-          <span className="flex items-center space-x-1">
-            <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Isolated Shadow Workspace</span>
-          </span>
         </div>
       </div>
 
-      {/* Success / Error Banners */}
+      {/* Feedback Alerts */}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2 font-medium animate-fadeIn">
+        <div className="px-3.5 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 font-medium">
+        <div className="px-3.5 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* Indexed Repositories */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
-            <span>Available Firmware Projects</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-semibold">
-              {projects.length}
-            </span>
+      {/* Projects Table / Clean List */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
+            Available Firmware Projects ({projects.length})
           </h2>
-          <span className="text-[11px] text-slate-400">Select any project to begin analysis</span>
+          <span className="text-[11px] text-slate-400">Select one to begin analysis</span>
         </div>
 
         {projects.length === 0 ? (
-          <div className="p-10 text-center rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-            <p className="text-xs text-slate-500 font-medium">No projects in database right now.</p>
-            <p className="text-[11px] text-slate-400">
-              Upload your code archive above or click "1-Click CWE-120 Demo" to get started instantly.
-            </p>
+          <div className="p-8 text-center text-xs text-slate-400">
+            No firmware ingested yet. Upload an archive or run a demo above.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="divide-y divide-slate-100">
             {projects.map((p) => (
               <div
                 key={p.id}
-                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-indigo-300 hover:shadow-xs transition-all flex items-center justify-between group"
+                className="px-4 py-3 flex items-center justify-between hover:bg-slate-50/60 transition group"
               >
-                <div className="space-y-1 min-w-0 pr-3">
-                  <div className="flex items-center space-x-2">
-                    <FolderArchive className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="text-sm font-bold text-slate-800 truncate">{p.name}</span>
+                <div className="flex items-center space-x-3 min-w-0 pr-4">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <FolderArchive className="w-4 h-4" />
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    Framework: <span className="text-slate-700 font-semibold">{p.framework_type.toUpperCase()}</span> | Files: <span className="font-semibold text-slate-700">{p.file_count}</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    ID: <span className="font-mono">{p.id.substring(0, 8)}</span> • {new Date(p.created_at).toLocaleDateString()}
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-900 truncate">{p.name}</p>
+                    <div className="flex items-center space-x-2 text-[11px] text-slate-400">
+                      <span>{p.framework_type.toUpperCase()}</span>
+                      <span>•</span>
+                      <span>{p.file_count} files</span>
+                      <span>•</span>
+                      <span className="font-mono">{p.id.substring(0, 8)}</span>
+                    </div>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleSelectAndProceed(p.id)}
-                  className="px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center space-x-1 shadow-xs shrink-0"
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center space-x-1.5 transition shrink-0"
                 >
                   <span>Select & Scan</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
             ))}
