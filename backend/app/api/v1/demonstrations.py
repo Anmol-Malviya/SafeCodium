@@ -1,10 +1,11 @@
 """Safe Vibe AI — End-to-End Demonstration Endpoints."""
 
-import tempfile
+import uuid
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.schemas.common import ApiResponse
 from backend.app.schemas.demonstration import (
@@ -32,15 +33,18 @@ async def run_end_to_end_demonstration(cwe_code: str, db: AsyncSession = Depends
             detail="Demonstration currently supported for CWE-120 and CWE-476 firmware fixtures.",
         )
 
+    # Persist demonstration workspace so that subsequent verification, diff and compile calls succeed
+    demo_id = f"demo-{cwe_upper.lower()}-{uuid.uuid4().hex[:6]}"
+    demo_workspace = settings.WORKSPACE_DIR / demo_id
+    demo_workspace.mkdir(parents=True, exist_ok=True)
+
     fixture_name = "sample_smart_meter.c"
-    with tempfile.TemporaryDirectory() as temp_dir_str:
-        temp_dir = Path(temp_dir_str)
-        demo_result = await EndToEndDemonstrator.run_cwe_demonstration(
-            target_cwe=cwe_upper,
-            fixture_file_name=fixture_name,
-            db=db,
-            temp_dir=temp_dir,
-        )
+    demo_result = await EndToEndDemonstrator.run_cwe_demonstration(
+        target_cwe=cwe_upper,
+        fixture_file_name=fixture_name,
+        db=db,
+        temp_dir=demo_workspace,
+    )
 
     return ApiResponse(
         success=True,
@@ -66,4 +70,3 @@ async def run_end_to_end_demonstration(cwe_code: str, db: AsyncSession = Depends
             ],
         ),
     )
-

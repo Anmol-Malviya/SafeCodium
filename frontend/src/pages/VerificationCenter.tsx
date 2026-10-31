@@ -2,20 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
-  Terminal,
   CheckCircle2,
-  XCircle,
-  HelpCircle,
   Cpu,
   Play,
-  RotateCcw,
   AlertTriangle,
   ArrowRight,
-  Code2,
   FileCheck,
-  Zap,
-  Layers,
   Award,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import {
   listProjects,
@@ -33,14 +28,22 @@ import {
   ResourceProfileData,
   VerificationStatusData,
 } from '../services/api';
+import { useProjectContext } from '../context/ProjectContext';
 
 export const VerificationCenter: React.FC = () => {
   const navigate = useNavigate();
+  const {
+    activeProjectId,
+    setActiveProjectId,
+    selectedPatchId: contextPatchId,
+    setSelectedPatchId: setContextPatchId,
+    setCurrentStepIndex,
+  } = useProjectContext();
 
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(activeProjectId || '');
   const [patches, setPatches] = useState<PatchData[]>([]);
-  const [selectedPatchId, setSelectedPatchId] = useState<string>('');
+  const [selectedPatchId, setSelectedPatchId] = useState<string>(contextPatchId || '');
 
   const [dualCompileResult, setDualCompileResult] = useState<DualCompileData | null>(null);
   const [sanitizerResult, setSanitizerResult] = useState<DualSanitizerData | null>(null);
@@ -53,9 +56,17 @@ export const VerificationCenter: React.FC = () => {
   const [isSanitizing, setIsSanitizing] = useState<boolean>(false);
   const [isRegressing, setIsRegressing] = useState<boolean>(false);
   const [isProfiling, setIsProfiling] = useState<boolean>(false);
+  const [isVerifyingAll, setIsVerifyingAll] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Initialize projects
+  // Sync with activeProjectId from global context
+  useEffect(() => {
+    if (activeProjectId && activeProjectId !== selectedProjectId) {
+      setSelectedProjectId(activeProjectId);
+    }
+  }, [activeProjectId]);
+
+  // Load projects list
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
@@ -63,7 +74,9 @@ export const VerificationCenter: React.FC = () => {
         const res = await listProjects();
         setProjects(res);
         if (res.length > 0) {
-          setSelectedProjectId(res[0].id);
+          const initialId = activeProjectId && res.some((p) => p.id === activeProjectId) ? activeProjectId : res[0].id;
+          setSelectedProjectId(initialId);
+          setActiveProjectId(initialId);
         }
       } catch (err) {
         setErrorMsg('Failed to initialize projects.');
@@ -74,7 +87,7 @@ export const VerificationCenter: React.FC = () => {
     init();
   }, []);
 
-  // When project changes, fetch patches
+  // When project changes, fetch its patches
   useEffect(() => {
     if (!selectedProjectId) {
       setPatches([]);
@@ -86,7 +99,9 @@ export const VerificationCenter: React.FC = () => {
         const res = await listProjectPatches(selectedProjectId);
         setPatches(res);
         if (res.length > 0) {
-          setSelectedPatchId(res[0].id);
+          const matchedPatch = contextPatchId && res.some((p) => p.id === contextPatchId) ? contextPatchId : res[0].id;
+          setSelectedPatchId(matchedPatch);
+          setContextPatchId(matchedPatch);
         } else {
           setSelectedPatchId('');
           setDualCompileResult(null);
@@ -188,24 +203,55 @@ export const VerificationCenter: React.FC = () => {
     }
   };
 
+  const handleRunFullVerificationSuite = async () => {
+    if (!selectedPatchId) return;
+    setIsVerifyingAll(true);
+    setErrorMsg(null);
+    try {
+      await runDualCompilation(selectedPatchId);
+      await runSanitizerVerification(selectedPatchId);
+      await runRegressionSuite(selectedPatchId);
+      const prof = await runResourceProfiling(selectedPatchId);
+      setResourceResult(prof);
+      const status = await getVerificationStatus(selectedPatchId);
+      setVerificationRecord(status);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.detail || err.message || 'Verification pipeline encountered an error.');
+    } finally {
+      setIsVerifyingAll(false);
+    }
+  };
+
+  const isVerified = verificationRecord?.final_status === 'VERIFIED';
+  const isRejected = verificationRecord?.final_status === 'REJECTED';
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      {/* Header and Selectors */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Deterministic Verification Center</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Deterministic Ground-Truth Oracle (Rule 6): Dual compilation, ASan/UBSan runtimes, 4-tier functional regression, and binary footprint profiling.
+          <div className="flex items-center space-x-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Step 5 of 6
+            </span>
+            <span className="text-xs font-semibold text-slate-500">Ground-Truth Oracle</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-1">Deterministic Verification</h1>
+          <p className="text-xs text-slate-500">
+            Dual compiler, ASan/UBSan runtimes, regression test matrix, and footprint profiling.
           </p>
         </div>
 
         {/* Project & Patch Selectors */}
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
           {projects.length > 0 && (
             <select
               value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs"
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value);
+                setActiveProjectId(e.target.value);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-2xs max-w-[200px] truncate"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -218,8 +264,11 @@ export const VerificationCenter: React.FC = () => {
           {patches.length > 0 && (
             <select
               value={selectedPatchId}
-              onChange={(e) => setSelectedPatchId(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs"
+              onChange={(e) => {
+                setSelectedPatchId(e.target.value);
+                setContextPatchId(e.target.value);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 shadow-2xs max-w-[220px] truncate"
             >
               {patches.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -232,24 +281,24 @@ export const VerificationCenter: React.FC = () => {
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 font-medium">
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center space-x-2 font-medium">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Verification Status Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Verification Status Banner with 1-Click Run All */}
+      <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              GROUND-TRUTH VERIFICATION VERDICT
+              Verification Verdict
             </span>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                verificationRecord?.final_status === 'VERIFIED'
+              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                isVerified
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : verificationRecord?.final_status === 'REJECTED'
+                  : isRejected
                   ? 'bg-rose-50 text-rose-700 border border-rose-200'
                   : 'bg-amber-50 text-amber-700 border border-amber-200'
               }`}
@@ -258,32 +307,46 @@ export const VerificationCenter: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500">
-            {verificationRecord?.final_status === 'VERIFIED'
-              ? 'All 4 verification gates certified exit-code 0, 0 runtime crashes, and resource budget compliance.'
-              : 'Execute the 4 deterministic verification stages below to certify the patch.'}
+            {isVerified
+              ? 'All gates certified exit-code 0, zero runtime crashes, and resource budget compliance.'
+              : 'Execute the 4 verification gates below to certify this patch deterministically.'}
           </p>
         </div>
 
-        {verificationRecord?.final_status === 'VERIFIED' && (
+        <div className="flex items-center space-x-2">
           <button
-            onClick={() => navigate('/reports')}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center space-x-2 transition-all shadow-sm shadow-emerald-500/20"
+            onClick={handleRunFullVerificationSuite}
+            disabled={isVerifyingAll || !selectedPatchId}
+            className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center space-x-1.5 transition disabled:opacity-50 shadow-2xs"
           >
-            <Award className="w-4 h-4" />
-            <span>Generate Security Passport</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            {isVerifyingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+            <span>Run All Gates</span>
           </button>
-        )}
+
+          {isVerified && (
+            <button
+              onClick={() => {
+                setCurrentStepIndex(6);
+                navigate('/reports');
+              }}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center space-x-1.5 transition shadow-2xs"
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>View Passport</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 4 Interactive Verification Harness Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Gate 1: Dual Compilation */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
-          <div className="space-y-2">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
-                <FileCheck className="w-4 h-4 text-blue-500" />
+                <FileCheck className="w-4 h-4 text-indigo-600" />
                 <span>Gate 1: Dual Compiler Harness</span>
               </span>
               <span
@@ -295,27 +358,27 @@ export const VerificationCenter: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Executes `clang -Wall -Wextra -Werror` on both pre-patch and post-patch source files to verify deterministic exit-code 0.
+              Executes `clang -Wall -Wextra -Werror` on pre-patch vs post-patch sources to verify exit-code 0.
             </p>
           </div>
 
           <button
             onClick={handleRunCompile}
             disabled={isCompiling || !selectedPatchId}
-            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+            className="w-full py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition disabled:opacity-50"
           >
-            <Play className="w-3.5 h-3.5" />
-            <span>{isCompiling ? 'Compiling Dual C Sources...' : 'Execute Dual Compilation'}</span>
+            {isCompiling ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> : <Play className="w-3 h-3 text-indigo-600" />}
+            <span>{isCompiling ? 'Compiling...' : 'Execute Compilation'}</span>
           </button>
         </div>
 
         {/* Gate 2: Runtime Sanitizers */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
-          <div className="space-y-2">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
                 <ShieldAlert className="w-4 h-4 text-rose-500" />
-                <span>Gate 2: AddressSanitizer (ASan) &amp; UBSan</span>
+                <span>Gate 2: AddressSanitizer (ASan) & UBSan</span>
               </span>
               <span
                 className={`text-[11px] font-bold ${
@@ -326,23 +389,23 @@ export const VerificationCenter: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Injects boundary inputs with `-fsanitize=address,undefined` to verify stack-overflow trapping and zero undefined behaviors.
+              Injects boundary inputs with `-fsanitize=address,undefined` to verify stack-overflow trapping and safety.
             </p>
           </div>
 
           <button
             onClick={handleRunSanitizer}
             disabled={isSanitizing || !selectedPatchId}
-            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+            className="w-full py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition disabled:opacity-50"
           >
-            <Play className="w-3.5 h-3.5" />
-            <span>{isSanitizing ? 'Running Sanitizer Harness...' : 'Execute ASan/UBSan Check'}</span>
+            {isSanitizing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> : <Play className="w-3 h-3 text-indigo-600" />}
+            <span>{isSanitizing ? 'Running Sanitizer...' : 'Execute ASan/UBSan'}</span>
           </button>
         </div>
 
         {/* Gate 3: Functional Regression */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
-          <div className="space-y-2">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -357,27 +420,27 @@ export const VerificationCenter: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Verifies Benign inputs, Boundary conditions, neutralized Exploit payloads, and Fault injection vectors with 100% pass criteria.
+              Verifies Benign inputs, Boundary conditions, Exploit payloads, and Fault injections.
             </p>
           </div>
 
           <button
             onClick={handleRunRegression}
             disabled={isRegressing || !selectedPatchId}
-            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+            className="w-full py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition disabled:opacity-50"
           >
-            <Play className="w-3.5 h-3.5" />
-            <span>{isRegressing ? 'Executing 4-Tier Matrix...' : 'Run Functional Regression'}</span>
+            {isRegressing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> : <Play className="w-3 h-3 text-indigo-600" />}
+            <span>{isRegressing ? 'Testing...' : 'Run Regression Matrix'}</span>
           </button>
         </div>
 
         {/* Gate 4: Resource Profiler */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
-          <div className="space-y-2">
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 flex items-center space-x-2">
                 <Cpu className="w-4 h-4 text-purple-500" />
-                <span>Gate 4: Binary Footprint &amp; RAM Delta</span>
+                <span>Gate 4: Binary Footprint & RAM Delta</span>
               </span>
               <span
                 className={`text-[11px] font-bold ${
@@ -388,17 +451,17 @@ export const VerificationCenter: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Ensures Flash footprint delta does not exceed 256 Bytes and guarantees zero dynamic heap expansion in microcontroller memory.
+              Guarantees Flash overhead does not exceed 256B and zero dynamic heap expansion in RAM.
             </p>
           </div>
 
           <button
             onClick={handleRunProfiling}
             disabled={isProfiling || !selectedPatchId}
-            className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
+            className="w-full py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center space-x-1.5 transition disabled:opacity-50"
           >
-            <Play className="w-3.5 h-3.5" />
-            <span>{isProfiling ? 'Measuring Footprint...' : 'Profile Binary Overhead'}</span>
+            {isProfiling ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> : <Play className="w-3 h-3 text-indigo-600" />}
+            <span>{isProfiling ? 'Profiling...' : 'Profile Binary Overhead'}</span>
           </button>
         </div>
       </div>
