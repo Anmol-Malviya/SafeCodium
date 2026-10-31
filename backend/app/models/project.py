@@ -1,10 +1,13 @@
 """Safe Vibe AI — Database ORM Models."""
 
 import uuid
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import String, Integer, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.app.db.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from backend.app.models.user import User
 
 
 def generate_uuid() -> str:

@@ -58,3 +58,4 @@ async def test_unreachable_database_failure_handling(tmp_path):
         async with fake_pg_engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
     await fake_pg_engine.dispose()
+

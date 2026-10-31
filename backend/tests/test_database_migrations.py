@@ -54,3 +54,4 @@ def test_alembic_upgrade_downgrade_cycle(tmp_path):
     command.upgrade(cfg, "head")
     asyncio.run(verify_tables())
     asyncio.run(engine.dispose())
+

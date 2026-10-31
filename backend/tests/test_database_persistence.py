@@ -87,3 +87,4 @@ async def test_transaction_atomicity_and_rollback():
         stmt = select(Project).where(Project.name == failing_name)
         result = await session.execute(stmt)
         assert result.scalar_one_or_none() is None
+

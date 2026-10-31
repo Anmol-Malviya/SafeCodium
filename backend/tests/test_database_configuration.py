@@ -46,3 +46,4 @@ def test_engine_args_dialect_isolation():
     assert "connect_args" not in pg_args
     assert pg_args.get("pool_pre_ping") is True
     assert pg_args.get("pool_size") == 10
+

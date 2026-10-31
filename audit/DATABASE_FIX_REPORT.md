@@ -79,3 +79,4 @@ Zero data loss occurred during the migration; all 29 original users, 125 firmwar
 - Added step to run Alembic migrations on PostgreSQL.
 - Added step to execute database integration test suite against live PostgreSQL service.
 - Added step to run development test suite against SQLite.
+
