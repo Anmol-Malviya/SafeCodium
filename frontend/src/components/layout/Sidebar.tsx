@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  Play,
   LayoutDashboard,
   Upload,
   FileCode2,
@@ -22,6 +23,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'Auto Pipeline', path: '/pipeline', icon: Play },
   { name: 'Project Upload', path: '/upload', icon: Upload },
   { name: 'Code Analysis', path: '/analysis', icon: FileCode2 },
   { name: 'Vulnerability Scanner', path: '/scanner', icon: Scan },

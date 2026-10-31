@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProjectProvider } from './context/ProjectContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
+import { AutoPipeline } from './pages/AutoPipeline';
 import { ProjectUpload } from './pages/ProjectUpload';
 import { CodeAnalysis } from './pages/CodeAnalysis';
 import { VulnerabilityScanner } from './pages/VulnerabilityScanner';
@@ -24,6 +25,9 @@ export const App: React.FC = () => {
             <Route index element={<Navigate to="/upload" replace />} />
             <Route path="upload" element={<ProjectUpload />} />
             
+            {/* Autonomous Orchestrator */}
+            <Route path="pipeline" element={<AutoPipeline />} />
+
             {/* Step 2: Static Scanner & Context Analytics */}
             <Route path="scanner" element={<VulnerabilityScanner />} />
             <Route path="analysis" element={<CodeAnalysis />} />

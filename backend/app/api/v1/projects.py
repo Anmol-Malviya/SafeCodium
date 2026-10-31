@@ -1,8 +1,11 @@
 """Safe Vibe AI / SafeCodium — Projects & Ingestion API Endpoints."""
 
+import io
+import os
 import secrets
 import shutil
 import uuid
+import zipfile
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -260,4 +263,144 @@ async def delete_project(
         success=True,
         message=f"Project '{project.name}' deleted successfully",
         data={"deleted_project_id": project_id},
+    )
+
+
+@router.get("/{project_id}/download/repaired")
+async def download_repaired_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Packs the verified shadow workspace into a ZIP archive and streams it to the user.
+    Excludes internal secrets, temp files, and build artifacts.
+    """
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
+
+    shadow_path = Path(project.shadow_path) if project.shadow_path else None
+    if not shadow_path or not shadow_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repaired shadow workspace not available")
+
+    zip_buffer = io.BytesIO()
+    excluded_names = {".git", "__pycache__", ".pytest_cache", ".DS_Store"}
+    excluded_exts = {".o", ".obj", ".bin", ".exe", ".pyc", ".tmp"}
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(shadow_path):
+            dirs[:] = [d for d in dirs if d not in excluded_names]
+            for file in files:
+                if any(file.endswith(ext) for ext in excluded_exts):
+                    continue
+                file_full = Path(root) / file
+                arc_name = file_full.relative_to(shadow_path)
+                zip_file.write(file_full, arcname=str(arc_name))
+
+    zip_buffer.seek(0)
+    safe_name = f"{project.name.replace(' ', '_')}_repaired.zip"
+    from fastapi.responses import Response
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+    )
+
+
+@router.get("/{project_id}/download/original")
+async def download_original_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Downloads the immutable original project archive.
+    """
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
+
+    orig_path = Path(project.original_path) if project.original_path else None
+    if not orig_path or not orig_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Original project files not available")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, dirs, files in os.walk(orig_path):
+            for file in files:
+                file_full = Path(root) / file
+                arc_name = file_full.relative_to(orig_path)
+                zip_file.write(file_full, arcname=str(arc_name))
+
+    zip_buffer.seek(0)
+    safe_name = f"{project.name.replace(' ', '_')}_original.zip"
+    from fastapi.responses import Response
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+    )
+
+
+@router.get("/{project_id}/manifest", response_model=ApiResponse[dict])
+async def get_project_manifest(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Stage 2: Project Discovery and Understanding manifest.
+    Returns file structure, detected language, framework, build configs, and entry points.
+    """
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    verify_project_access(project, current_user)
+
+    target_dir = Path(project.shadow_path or project.original_path)
+    file_list = []
+    entry_points = []
+    build_configs = []
+    excluded_files = []
+
+    for root, dirs, files in os.walk(target_dir):
+        for f in files:
+            p = Path(root) / f
+            rel = str(p.relative_to(target_dir))
+            ext = p.suffix.lower()
+            if ext in {".c", ".cpp", ".cc", ".h", ".hpp"}:
+                content = p.read_text(encoding="utf-8", errors="replace")
+                if "app_main" in content or "main(" in content:
+                    entry_points.append(rel)
+                file_list.append({"path": rel, "type": "source", "lines": len(content.splitlines())})
+            elif f.lower() in {"cmakelists.txt", "makefile", "platformio.ini", "sdkconfig"}:
+                build_configs.append(rel)
+            else:
+                excluded_files.append({"path": rel, "reason": "non_c_cpp_resource"})
+
+    manifest = {
+        "project_id": project.id,
+        "project_name": project.name,
+        "framework_type": project.framework_type,
+        "source_type": project.source_type,
+        "entry_points": entry_points,
+        "build_configs": build_configs,
+        "source_files": file_list,
+        "excluded_files_count": len(excluded_files),
+        "compiler_requirements": "clang / gcc embedded toolchain",
+    }
+
+    return ApiResponse(
+        success=True,
+        message="Project manifest discovered",
+        data=manifest,
     )

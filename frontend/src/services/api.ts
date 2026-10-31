@@ -725,3 +725,55 @@ export const logoutUser = (): void => {
   localStorage.removeItem('safecodium_api_key');
   localStorage.removeItem('safecodium_user');
 };
+
+export interface StageInfoData {
+  stage_id: string;
+  name: string;
+  status: string;
+  details: string;
+  evidence: Record<string, string>;
+  elapsed_seconds: number;
+}
+
+export interface PipelineJobData {
+  job_id: string;
+  project_id: string;
+  status: string;
+  current_stage: string;
+  progress_percentage: number;
+  stages: StageInfoData[];
+  error_message: string | null;
+  summary_data: Record<string, any> | null;
+}
+
+export const triggerAutonomousPipeline = async (projectId: string, aiProvider: string = 'gemini'): Promise<PipelineJobData> => {
+  const response = await api.post<ApiResponse<PipelineJobData>>('/pipeline/run', {
+    project_id: projectId,
+    ai_provider: aiProvider,
+  });
+  return response.data.data;
+};
+
+
+export const getPipelineJobStatus = async (jobId: string): Promise<PipelineJobData> => {
+  const response = await api.get<ApiResponse<PipelineJobData>>('/pipeline/status/' + jobId);
+  return response.data.data;
+};
+
+export const getLatestProjectPipelineJob = async (projectId: string): Promise<PipelineJobData | null> => {
+  const response = await api.get<ApiResponse<PipelineJobData | null>>('/pipeline/project/' + projectId + '/latest');
+  return response.data.data;
+};
+
+export const getProjectManifest = async (projectId: string): Promise<Record<string, any>> => {
+  const response = await api.get<ApiResponse<Record<string, any>>>('/projects/' + projectId + '/manifest');
+  return response.data.data;
+};
+
+export const downloadRepairedProjectUrl = (projectId: string): string => {
+  return resolveBaseUrl() + '/projects/' + projectId + '/download/repaired';
+};
+
+export const downloadOriginalProjectUrl = (projectId: string): string => {
+  return resolveBaseUrl() + '/projects/' + projectId + '/download/original';
+};

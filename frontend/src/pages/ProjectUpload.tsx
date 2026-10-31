@@ -208,13 +208,25 @@ export const ProjectUpload: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleSelectAndProceed(p.id)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium flex items-center space-x-1.5 transition shrink-0"
-                >
-                  <span>Select & Scan</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setActiveProjectId(p.id);
+                      navigate('/pipeline');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center space-x-1.5 transition shadow-2xs"
+                  >
+                    <Play className="w-3 h-3 fill-white" />
+                    <span>Auto Repair</span>
+                  </button>
+                  <button
+                    onClick={() => handleSelectAndProceed(p.id)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition"
+                  >
+                    <span>Manual Flow</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

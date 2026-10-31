@@ -34,6 +34,7 @@ class Project(Base, TimestampMixin):
     owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[owner_id])
     scans: Mapped[List["Scan"]] = relationship("Scan", back_populates="project", cascade="all, delete-orphan")
     vulnerabilities: Mapped[List["Vulnerability"]] = relationship("Vulnerability", back_populates="project", cascade="all, delete-orphan")
+    jobs: Mapped[List["AnalysisJob"]] = relationship("AnalysisJob", back_populates="project", cascade="all, delete-orphan")
 
 
 class Scan(Base, TimestampMixin):
@@ -113,3 +114,20 @@ class Verification(Base, TimestampMixin):
 
     # Relationships
     patch: Mapped["Patch"] = relationship("Patch", back_populates="verification")
+
+
+class AnalysisJob(Base, TimestampMixin):
+    """Represents an autonomous end-to-end analysis and repair pipeline job."""
+    __tablename__ = "analysis_jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id"), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="pending")  # pending, running, completed, failed, cancelled
+    current_stage: Mapped[str] = mapped_column(String(64), default="queued")
+    progress_percentage: Mapped[int] = mapped_column(Integer, default=0)
+    stages_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project", back_populates="jobs")
