@@ -86,34 +86,6 @@ export const Sidebar: React.FC = () => {
             <span className="text-xs font-medium text-slate-800">All Systems Operational</span>
           </div>
         </div>
-
-        {/* AI Providers Card */}
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2">
-          <div className="text-[11px] font-semibold text-slate-500">AI Providers</div>
-          <div className="space-y-1.5 text-xs font-medium">
-            <div className="flex items-center justify-between text-slate-700">
-              <span className="flex items-center space-x-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Gemini API</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-700">
-              <span className="flex items-center space-x-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>OpenAI API</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-700">
-              <span className="flex items-center space-x-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Ollama (Gemma 3B)</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold">Online</span>
-            </div>
-          </div>
-        </div>
       </div>
     </aside>
   );
