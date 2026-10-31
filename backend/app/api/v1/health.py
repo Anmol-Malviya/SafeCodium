@@ -9,8 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import psutil
-from backend.app.db.session import get_db
-from backend.app.schemas.common import ApiResponse, SystemHealthInfo
+from backend.app.db.session import get_db, engine
+from backend.app.schemas.common import ApiResponse, SystemHealthInfo, DatabaseHealthInfo
 
 router = APIRouter()
 START_TIME = time.time()
@@ -42,13 +42,49 @@ def get_gpu_telemetry():
 
 @router.get("/health", response_model=ApiResponse[SystemHealthInfo])
 async def health_check(db: AsyncSession = Depends(get_db)):
-    """Dynamic healthcheck reporting hardware and service health."""
+    """Dynamic healthcheck reporting hardware and service health with full DB diagnostics."""
     db_connected = False
+    latency_ms = 0.0
+    db_error = None
+    migration_version = None
+    schema_initialized = False
+
+    dialect_name = engine.dialect.name
+    driver_name = engine.dialect.driver
+
+    t_start = time.perf_counter()
     try:
         result = await db.execute(text("SELECT 1"))
         db_connected = result.scalar() == 1
-    except Exception:
+        latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
+
+        # Query migration revision
+        try:
+            mig_res = await db.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+            migration_version = mig_res.scalar()
+        except Exception:
+            migration_version = "not_versioned"
+
+        # Check essential tables presence
+        try:
+            check_res = await db.execute(text("SELECT COUNT(*) FROM projects"))
+            schema_initialized = check_res.scalar() is not None
+        except Exception:
+            schema_initialized = False
+    except Exception as e:
+        latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
         db_connected = False
+        db_error = str(e)
+
+    db_details = DatabaseHealthInfo(
+        status="CONNECTED" if db_connected else "DISCONNECTED",
+        dialect=dialect_name,
+        driver=driver_name,
+        latency_ms=latency_ms,
+        schema_initialized=schema_initialized,
+        migration_version=str(migration_version) if migration_version else None,
+        error=db_error,
+    )
 
     mem = psutil.virtual_memory()
     total_ram_gb = round(mem.total / (1024 ** 3), 2)
@@ -58,7 +94,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     uptime = round(time.time() - START_TIME, 2)
 
     data = SystemHealthInfo(
-        status="OPERATIONAL",
+        status="OPERATIONAL" if db_connected else "DEGRADED",
         uptime_seconds=uptime,
         os=f"{platform.system()} {platform.release()} ({platform.architecture()[0]})",
         python_version=platform.python_version(),
@@ -69,6 +105,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         vram_total_mb=gpu["total_mb"],
         vram_free_mb=gpu["free_mb"],
         database_connected=db_connected,
+        database_details=db_details,
     )
 
     return ApiResponse(

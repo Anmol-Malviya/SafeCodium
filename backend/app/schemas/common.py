@@ -15,6 +15,17 @@ class ApiResponse(BaseModel, Generic[T]):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
+class DatabaseHealthInfo(BaseModel):
+    """Detailed database connectivity and diagnostics telemetry."""
+    status: str  # CONNECTED, DISCONNECTED, DEGRADED
+    dialect: str  # sqlite, postgresql
+    driver: str  # aiosqlite, asyncpg
+    latency_ms: float
+    schema_initialized: bool
+    migration_version: Optional[str] = None
+    error: Optional[str] = None
+
+
 class SystemHealthInfo(BaseModel):
     """Runtime host and hardware telemetry."""
     status: str
@@ -28,6 +39,7 @@ class SystemHealthInfo(BaseModel):
     vram_total_mb: Optional[int] = None
     vram_free_mb: Optional[int] = None
     database_connected: bool
+    database_details: Optional[DatabaseHealthInfo] = None
 
 
 class ProjectCreate(BaseModel):

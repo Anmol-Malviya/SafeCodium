@@ -21,6 +21,7 @@ COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Copy application files
+COPY alembic.ini ./alembic.ini
 COPY backend/ ./backend/
 COPY fixtures/ ./fixtures/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

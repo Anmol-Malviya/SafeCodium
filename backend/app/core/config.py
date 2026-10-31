@@ -73,7 +73,61 @@ class Settings(BaseSettings):
     ARTIFACT_DIR: Path = DATA_DIR / "artifacts"
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./safevibe.db"
+    DATABASE_URL: str = Field(
+        default="sqlite+aiosqlite:///./safevibe.db",
+        description="Async SQLAlchemy database connection string (SQLite or PostgreSQL)",
+    )
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def validate_and_normalize_database_url(cls, v: Union[str, None]) -> str:
+        if not v or not isinstance(v, str) or not v.strip():
+            # Default to absolute safevibe.db in project base directory
+            base_dir = Path(__file__).resolve().parent.parent.parent.parent
+            default_path = (base_dir / "safevibe.db").resolve().as_posix()
+            return f"sqlite+aiosqlite:///{default_path}"
+
+        url = v.strip()
+
+        # Reject synchronous drivers
+        if url.startswith("sqlite://"):
+            url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        elif url.startswith("postgresql://") or url.startswith("postgres://"):
+            prefix = "postgresql://" if url.startswith("postgresql://") else "postgres://"
+            url = url.replace(prefix, "postgresql+asyncpg://", 1)
+
+        # Validate supported async schemes
+        if not (url.startswith("sqlite+aiosqlite:///") or url.startswith("postgresql+asyncpg://")):
+            raise ValueError(
+                f"Unsupported DATABASE_URL scheme in '{url}'. "
+                "Must be 'sqlite+aiosqlite:///' or 'postgresql+asyncpg://'."
+            )
+
+        # Normalize SQLite relative paths to absolute paths
+        if url.startswith("sqlite+aiosqlite:///"):
+            raw_path = url[len("sqlite+aiosqlite:///"):]
+            # Only normalize if not already absolute or memory
+            if raw_path != ":memory:" and not raw_path.startswith("/"):
+                # Handle Windows drive letters or relative ./ paths
+                base_dir = Path(__file__).resolve().parent.parent.parent.parent
+                if raw_path.startswith("./"):
+                    target_file = (base_dir / raw_path[2:]).resolve()
+                else:
+                    target_path = Path(raw_path)
+                    if not target_path.is_absolute():
+                        target_file = (base_dir / target_path).resolve()
+                    else:
+                        target_file = target_path.resolve()
+
+                # Ensure parent directory exists
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+                url = f"sqlite+aiosqlite:///{target_file.as_posix()}"
+            elif raw_path.startswith("/") and len(raw_path) > 3 and raw_path[2] == ":":
+                # Windows absolute format like /C:/path
+                clean_path = raw_path.lstrip("/")
+                Path(clean_path).parent.mkdir(parents=True, exist_ok=True)
+
+        return url
 
     # AI Engine
     GEMINI_API_KEY: str = Field(default="")
