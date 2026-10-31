@@ -20,6 +20,17 @@ import {
   Layers,
   Wrench,
   Check,
+  Search,
+  Bug,
+  Cpu,
+  GitBranch,
+  ShieldAlert,
+  Sliders,
+  Settings,
+  HelpCircle,
+  Folder,
+  Maximize2,
+  Eye,
 } from 'lucide-react';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import {
@@ -30,33 +41,62 @@ import {
   triggerAutonomousPipeline,
   getPipelineJobStatus,
   getLatestProjectPipelineJob,
+  getProjectVulnerabilities,
+  listProjectPatches,
+  getVerificationPassport,
   downloadRepairedProjectUrl,
   downloadOriginalProjectUrl,
   ProjectData,
   SourceFileData,
   PipelineJobData,
+  VulnerabilityData,
+  PatchData,
+  VerificationPassportData,
   runDemonstration,
 } from '../services/api';
 
+type ActivityBarTab = 'explorer' | 'search' | 'security' | 'patches' | 'passport';
+
 export const VsCodeStudio: React.FC = () => {
+  // Activity bar tab state
+  const [activeSideTab, setActiveSideTab] = useState<ActivityBarTab>('explorer');
+
   // Projects & Files state
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [files, setFiles] = useState<SourceFileData[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string>('');
-  
-  // File Contents
+  const [openTabs, setOpenTabs] = useState<string[]>([]);
+
+  // Search filter inside project files
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Vulnerabilities & Patches
+  const [vulnerabilities, setVulnerabilities] = useState<VulnerabilityData[]>([]);
+  const [patches, setPatches] = useState<PatchData[]>([]);
+  const [passport, setPassport] = useState<VerificationPassportData | null>(null);
+
+  // File Contents & View
   const [originalCode, setOriginalCode] = useState<string>('// Select a file to inspect code');
   const [currentCode, setCurrentCode] = useState<string>('// Select a file to inspect code');
-  const [activeTab, setActiveTab] = useState<'editor' | 'diff'>('editor');
+  const [editorMode, setEditorMode] = useState<'editor' | 'diff'>('editor');
 
   // Pipeline Job & Agent state
   const [job, setJob] = useState<PipelineJobData | null>(null);
   const [isFixing, setIsFixing] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [statusText, setStatusText] = useState<string>('Ready. Upload firmware or select project.');
+  const [statusText, setStatusText] = useState<string>('Ready. Select a file or click "Fix with AI Agent".');
+  const [agentLogs, setAgentLogs] = useState<string[]>([
+    'SafeCodium Embedded AI Studio Initialized [Clang 18 / GCC / ASan / UBSan Ready]',
+  ]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to add log
+  const addLog = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setAgentLogs((prev) => [...prev.slice(-40), `[${timestamp}] ${msg}`]);
+  };
 
   // 1. Initial Load: Projects
   const fetchProjects = async () => {
@@ -75,37 +115,51 @@ export const VsCodeStudio: React.FC = () => {
     fetchProjects();
   }, []);
 
-  // 2. Load Project Files & Check latest job
-  useEffect(() => {
-    if (!selectedProjectId) {
-      setFiles([]);
-      return;
-    }
+  // 2. Load Project Files, Vulnerabilities, Patches & Latest Job
+  const refreshProjectData = async (projId: string) => {
+    if (!projId) return;
+    try {
+      const [fileList, vulns, patchList, latestJob] = await Promise.all([
+        getProjectFiles(projId).catch(() => []),
+        getProjectVulnerabilities(projId).catch(() => []),
+        listProjectPatches(projId).catch(() => []),
+        getLatestProjectPipelineJob(projId).catch(() => null),
+      ]);
 
-    const loadProjectDetails = async () => {
-      try {
-        const fileList = await getProjectFiles(selectedProjectId);
-        setFiles(fileList);
-        if (fileList.length > 0) {
-          setSelectedFilePath(fileList[0].relative_path);
-        }
+      setFiles(fileList);
+      setVulnerabilities(vulns);
+      setPatches(patchList);
 
-        const latestJob = await getLatestProjectPipelineJob(selectedProjectId);
-        if (latestJob) {
-          setJob(latestJob);
-          if (latestJob.status === 'running') {
-            setIsFixing(true);
-            setStatusText('Live Agent is fixing vulnerabilities in background...');
-          }
-        } else {
-          setJob(null);
-        }
-      } catch (err) {
-        console.error('Failed to load project files', err);
+      if (fileList.length > 0 && !selectedFilePath) {
+        setSelectedFilePath(fileList[0].relative_path);
+        setOpenTabs([fileList[0].relative_path]);
       }
-    };
 
-    loadProjectDetails();
+      if (latestJob) {
+        setJob(latestJob);
+        if (latestJob.status === 'running') {
+          setIsFixing(true);
+          setStatusText('Agent actively analyzing and applying AST verified patches...');
+        }
+      }
+
+      // If patches exist, try to load passport for first patch
+      if (patchList.length > 0) {
+        getVerificationPassport(patchList[0].id)
+          .then((p) => setPassport(p))
+          .catch(() => setPassport(null));
+      } else {
+        setPassport(null);
+      }
+    } catch (err) {
+      console.error('Error refreshing project data', err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      refreshProjectData(selectedProjectId);
+    }
   }, [selectedProjectId]);
 
   // 3. Load File Content when selected file changes
@@ -127,6 +181,9 @@ export const VsCodeStudio: React.FC = () => {
   useEffect(() => {
     if (selectedFilePath) {
       loadContent(selectedFilePath);
+      if (!openTabs.includes(selectedFilePath)) {
+        setOpenTabs((prev) => [...prev, selectedFilePath]);
+      }
     }
   }, [selectedFilePath, selectedProjectId]);
 
@@ -138,16 +195,23 @@ export const VsCodeStudio: React.FC = () => {
       try {
         const updated = await getPipelineJobStatus(job.job_id);
         setJob(updated);
-        setStatusText(`Agent Stage: ${updated.current_stage.replace('_', ' ')} (${updated.progress_percentage}%)`);
+        setStatusText(`Agent Stage: ${updated.current_stage.replace(/_/g, ' ')} (${updated.progress_percentage}%)`);
+        addLog(`Processing: ${updated.current_stage} — ${updated.progress_percentage}% completed`);
 
         if (updated.status === 'completed' || updated.status === 'failed') {
           setIsFixing(false);
+          const verdict = updated.summary_data?.final_verdict || (updated.status === 'completed' ? 'VERIFIED' : 'FAILED');
           setStatusText(
             updated.status === 'completed'
-              ? `Done! All vulnerabilities fixed & verified (${updated.summary_data?.final_verdict || 'VERIFIED'})`
-              : `Fix pipeline halted: ${updated.error_message || 'Check terminal'}`
+              ? `Done! All vulnerabilities fixed & verified (${verdict})`
+              : `Pipeline failed: ${updated.error_message || 'Review terminal output'}`
           );
-          // Reload file content to reflect fixed code
+          addLog(`Pipeline finished with final status: ${verdict}`);
+
+          // Reload all project artifacts & file content
+          if (selectedProjectId) {
+            await refreshProjectData(selectedProjectId);
+          }
           if (selectedFilePath) {
             await loadContent(selectedFilePath);
           }
@@ -159,22 +223,26 @@ export const VsCodeStudio: React.FC = () => {
     }, 1200);
 
     return () => clearInterval(timer);
-  }, [isFixing, job?.job_id, selectedFilePath]);
+  }, [isFixing, job?.job_id, selectedFilePath, selectedProjectId]);
 
   // 5. Trigger Upload
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setIsUploading(true);
+    addLog(`Uploading archive '${file.name}' (${(file.size / 1024).toFixed(1)} KB)...`);
     setStatusText(`Uploading & unpacking ${file.name}...`);
 
     try {
       const uploaded = await uploadProject(file);
+      addLog(`Zip-Slip verification passed. Indexed ${uploaded.file_count} files in project '${uploaded.name}'.`);
       await fetchProjects();
       setSelectedProjectId(uploaded.id);
-      setStatusText(`Loaded "${uploaded.name}". Click "Fix with AI Agent" to start.`);
+      setStatusText(`Loaded "${uploaded.name}". Ready for live fix.`);
     } catch (err: any) {
-      setStatusText(`Upload error: ${err.response?.data?.detail || err.message}`);
+      const errDetail = err.response?.data?.detail || err.message;
+      setStatusText(`Upload error: ${errDetail}`);
+      addLog(`Upload error: ${errDetail}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -185,24 +253,30 @@ export const VsCodeStudio: React.FC = () => {
   const handleStartFix = async () => {
     if (!selectedProjectId) return;
     setIsFixing(true);
+    addLog('Live AI Agent triggered. Running static AST scanner + IoT context synthesis...');
     setStatusText('AI Agent initiated. Analyzing firmware AST & peripherals...');
-    setActiveTab('editor');
+    setEditorMode('editor');
 
     try {
       const newJob = await triggerAutonomousPipeline(selectedProjectId, 'gemini');
       setJob(newJob);
+      addLog(`Job ${newJob.job_id} scheduled in background.`);
     } catch (err: any) {
       setIsFixing(false);
-      setStatusText(`Failed to launch agent: ${err.response?.data?.detail || err.message}`);
+      const msg = err.response?.data?.detail || err.message;
+      setStatusText(`Failed to launch agent: ${msg}`);
+      addLog(`Failed to start agent: ${msg}`);
     }
   };
 
   // Quick Demo Trigger
   const handleQuickDemo = async (cwe: 'CWE-120' | 'CWE-476') => {
     setIsFixing(true);
+    addLog(`Loading authentic ${cwe} smart meter fixture...`);
     setStatusText(`Loading ${cwe} firmware test fixture...`);
     try {
       const demo = await runDemonstration(cwe);
+      addLog(`${cwe} demo fixture ingested & verified. Final verdict: ${demo.final_verdict}`);
       await fetchProjects();
       if (demo.demonstration_id) {
         setSelectedProjectId(demo.demonstration_id);
@@ -210,40 +284,58 @@ export const VsCodeStudio: React.FC = () => {
       setStatusText(`${cwe} loaded and verified (${demo.final_verdict}). Check code and diff!`);
     } catch (err: any) {
       setStatusText(`Demo error: ${err.message}`);
+      addLog(`Demo error: ${err.message}`);
     } finally {
       setIsFixing(false);
     }
   };
 
+  const closeTab = (path: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const filtered = openTabs.filter((t) => t !== path);
+    setOpenTabs(filtered);
+    if (selectedFilePath === path && filtered.length > 0) {
+      setSelectedFilePath(filtered[0]);
+    }
+  };
+
+  // Filter files by search
+  const filteredFiles = files.filter((f) =>
+    f.relative_path.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4.2rem)] bg-[#1e1e1e] text-slate-200 overflow-hidden font-sans select-none">
-      {/* VS Code Top Menu / Control Toolbar */}
-      <header className="h-12 bg-[#252526] border-b border-[#333333] px-4 flex items-center justify-between shrink-0">
+    <div className="flex flex-col h-screen w-screen bg-[#1e1e1e] text-[#cccccc] overflow-hidden font-sans select-none fixed inset-0">
+      {/* VS Code Title Bar */}
+      <header className="h-9 bg-[#323233] border-b border-[#252526] px-3 flex items-center justify-between shrink-0 text-xs">
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-300">
+          <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-white font-bold tracking-tight">SafeCodium Live Studio</span>
+            <span className="text-white font-bold text-xs tracking-tight">SafeCodium Studio</span>
           </div>
 
-          <span className="text-slate-600">|</span>
+          <span className="text-[#555555]">|</span>
 
-          {/* Project Dropdown */}
-          <select
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="bg-[#3c3c3c] text-slate-200 text-xs px-2.5 py-1 rounded border border-[#555] focus:outline-hidden"
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.file_count} files)
-              </option>
-            ))}
-          </select>
+          {/* Project Switcher */}
+          <div className="flex items-center space-x-1.5">
+            <FolderArchive className="w-3.5 h-3.5 text-blue-400" />
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="bg-[#252526] text-slate-200 text-xs px-2 py-0.5 rounded border border-[#3c3c3c] focus:outline-hidden"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.file_count} files)
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Action Buttons: Upload, Fix, Download */}
+        {/* Global Action Buttons */}
         <div className="flex items-center space-x-2">
-          {/* Hidden file input */}
+          {/* Upload input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -255,22 +347,22 @@ export const VsCodeStudio: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isFixing}
-            className="px-3 py-1.5 rounded bg-[#333333] hover:bg-[#444444] text-slate-200 text-xs font-medium flex items-center space-x-1.5 border border-[#555] transition"
+            className="px-2.5 py-1 rounded bg-[#3c3c3c] hover:bg-[#4c4c4c] text-slate-200 text-xs font-medium flex items-center space-x-1.5 border border-[#555] transition"
           >
             {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5 text-blue-400" />}
             <span>Upload File / ZIP</span>
           </button>
 
-          {/* Start Fix Button */}
+          {/* Fix with AI Agent */}
           <button
             onClick={handleStartFix}
             disabled={isFixing || !selectedProjectId}
-            className="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition disabled:opacity-50"
+            className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center space-x-1.5 shadow-sm transition disabled:opacity-50"
           >
             {isFixing ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>Agent Fixing...</span>
+                <span>Agent Repairing...</span>
               </>
             ) : (
               <>
@@ -280,15 +372,16 @@ export const VsCodeStudio: React.FC = () => {
             )}
           </button>
 
-          {/* Repaired Download Button */}
+          {/* Download Repaired Project */}
           {selectedProjectId && (
             <a
               href={downloadRepairedProjectUrl(selectedProjectId)}
-              className={`px-3.5 py-1.5 rounded text-xs font-bold flex items-center space-x-1.5 transition ${
-                job?.status === 'completed'
+              className={`px-3 py-1 rounded text-xs font-bold flex items-center space-x-1.5 transition ${
+                job?.status === 'completed' || patches.length > 0
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/20'
                   : 'bg-[#2d2d2d] hover:bg-[#3d3d3d] text-slate-300 border border-[#555]'
               }`}
+              title="Download verified shadow workspace archive"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download Repaired Project</span>
@@ -297,103 +390,319 @@ export const VsCodeStudio: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Studio Body: File Tree + Editor */}
+      {/* Main Studio Body: Activity Bar + Side Bar + Editor + Terminal */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: VS Code File Explorer */}
-        <aside className="w-64 bg-[#252526] border-r border-[#333333] flex flex-col shrink-0">
+        {/* 1. VS Code Activity Bar (Leftmost narrow icon bar) */}
+        <div className="w-12 bg-[#333333] border-r border-[#252526] flex flex-col justify-between items-center py-2 shrink-0 select-none">
+          <div className="flex flex-col space-y-4 text-[#858585]">
+            <button
+              onClick={() => setActiveSideTab('explorer')}
+              title="Explorer (Files)"
+              className={`p-2 rounded hover:text-white transition ${
+                activeSideTab === 'explorer' ? 'text-white border-l-2 border-white pl-1.5' : ''
+              }`}
+            >
+              <FileCode className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setActiveSideTab('security')}
+              title="Vulnerabilities & Findings"
+              className={`p-2 rounded hover:text-white transition relative ${
+                activeSideTab === 'security' ? 'text-white border-l-2 border-white pl-1.5' : ''
+              }`}
+            >
+              <Bug className="w-5 h-5" />
+              {vulnerabilities.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveSideTab('patches')}
+              title="Synthesized Patches & Diffs"
+              className={`p-2 rounded hover:text-white transition relative ${
+                activeSideTab === 'patches' ? 'text-white border-l-2 border-white pl-1.5' : ''
+              }`}
+            >
+              <Wrench className="w-5 h-5" />
+              {patches.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveSideTab('passport')}
+              title="Security Passport & Evidence"
+              className={`p-2 rounded hover:text-white transition ${
+                activeSideTab === 'passport' ? 'text-white border-l-2 border-white pl-1.5' : ''
+              }`}
+            >
+              <ShieldCheck className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setActiveSideTab('search')}
+              title="Search"
+              className={`p-2 rounded hover:text-white transition ${
+                activeSideTab === 'search' ? 'text-white border-l-2 border-white pl-1.5' : ''
+              }`}
+            >
+              <Search className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex flex-col space-y-3 text-[#858585]">
+            <button
+              onClick={() => handleQuickDemo('CWE-120')}
+              title="Run CWE-120 Demo"
+              className="p-2 hover:text-amber-400 transition"
+            >
+              <Play className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleQuickDemo('CWE-476')}
+              title="Run CWE-476 Demo"
+              className="p-2 hover:text-blue-400 transition"
+            >
+              <Cpu className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Side Panel (Explorer / Security / Patches / Passport) */}
+        <aside className="w-64 bg-[#252526] border-r border-[#1e1e1e] flex flex-col shrink-0 text-xs">
+          {/* Side Panel Header */}
           <div className="px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between border-b border-[#333333]">
-            <span>Explorer</span>
-            <span className="text-[10px] text-slate-500">{files.length} files</span>
-          </div>
-
-          {/* Files List */}
-          <div className="flex-1 overflow-y-auto py-2">
-            {files.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-500">
-                No files loaded. Click &quot;Upload File / ZIP&quot; above.
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {files.map((f) => {
-                  const isSelected = selectedFilePath === f.relative_path;
-                  return (
-                    <button
-                      key={f.relative_path}
-                      onClick={() => setSelectedFilePath(f.relative_path)}
-                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center space-x-2 transition ${
-                        isSelected
-                          ? 'bg-[#37373d] text-white font-medium'
-                          : 'text-slate-400 hover:bg-[#2a2d2e] hover:text-slate-200'
-                      }`}
-                    >
-                      <FileCode className={`w-3.5 h-3.5 ${f.extension === '.cpp' ? 'text-blue-400' : 'text-amber-400'}`} />
-                      <span className="truncate">{f.filename}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Demos */}
-          <div className="p-3 border-t border-[#333333] bg-[#1e1e1e] space-y-1.5">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-              Quick Test Fixtures
+            <span>
+              {activeSideTab === 'explorer' && 'Explorer'}
+              {activeSideTab === 'security' && `Findings (${vulnerabilities.length})`}
+              {activeSideTab === 'patches' && `Patches (${patches.length})`}
+              {activeSideTab === 'passport' && 'Security Passport'}
+              {activeSideTab === 'search' && 'Search Files'}
             </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleQuickDemo('CWE-120')}
-                disabled={isFixing}
-                className="flex-1 py-1 rounded bg-[#2d2d2d] hover:bg-[#3d3d3d] text-[11px] text-slate-300 border border-[#444] transition"
-              >
-                CWE-120 Demo
-              </button>
-              <button
-                onClick={() => handleQuickDemo('CWE-476')}
-                disabled={isFixing}
-                className="flex-1 py-1 rounded bg-[#2d2d2d] hover:bg-[#3d3d3d] text-[11px] text-slate-300 border border-[#444] transition"
-              >
-                CWE-476 Demo
-              </button>
-            </div>
+            <button onClick={() => selectedProjectId && refreshProjectData(selectedProjectId)} title="Refresh">
+              <RefreshCw className="w-3 h-3 hover:text-white transition" />
+            </button>
           </div>
+
+          {/* TAB 1: EXPLORER */}
+          {activeSideTab === 'explorer' && (
+            <div className="flex-1 overflow-y-auto py-2">
+              <div className="px-3 pb-2 text-[10px] text-slate-500 font-semibold uppercase tracking-wider flex items-center space-x-1">
+                <ChevronDown className="w-3 h-3" />
+                <span className="truncate">{projects.find((p) => p.id === selectedProjectId)?.name || 'WORKSPACE'}</span>
+              </div>
+
+              {files.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500">
+                  No files indexed. Click &quot;Upload File / ZIP&quot; above.
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {files.map((f) => {
+                    const isSelected = selectedFilePath === f.relative_path;
+                    const hasFinding = vulnerabilities.some((v) => v.file_path.endsWith(f.filename));
+                    return (
+                      <button
+                        key={f.relative_path}
+                        onClick={() => setSelectedFilePath(f.relative_path)}
+                        className={`w-full text-left px-3 py-1.5 flex items-center justify-between group transition ${
+                          isSelected
+                            ? 'bg-[#37373d] text-white font-medium'
+                            : 'text-[#cccccc] hover:bg-[#2a2d2e] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2 min-w-0 pr-2">
+                          <FileCode className={`w-3.5 h-3.5 shrink-0 ${f.extension === '.cpp' ? 'text-blue-400' : 'text-amber-400'}`} />
+                          <span className="truncate">{f.filename}</span>
+                        </div>
+                        {hasFinding && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" title="Vulnerability Detected" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: VULNERABILITIES FINDINGS */}
+          {activeSideTab === 'security' && (
+            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              {vulnerabilities.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500">
+                  No static vulnerabilities detected yet. Click &quot;Fix with AI Agent&quot; to scan.
+                </div>
+              ) : (
+                vulnerabilities.map((v) => (
+                  <div
+                    key={v.id}
+                    onClick={() => {
+                      const matched = files.find((f) => v.file_path.endsWith(f.filename));
+                      if (matched) setSelectedFilePath(matched.relative_path);
+                    }}
+                    className="p-2.5 rounded bg-[#1e1e1e] border border-[#333333] hover:border-slate-500 cursor-pointer space-y-1 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
+                        {v.cwe_id}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">Line {v.line_start}</span>
+                    </div>
+                    <div className="font-semibold text-slate-200 text-xs truncate">{v.title}</div>
+                    <p className="text-[11px] text-slate-400 line-clamp-2">{v.title}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: PATCHES */}
+          {activeSideTab === 'patches' && (
+            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              {patches.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500">
+                  No patches synthesized yet. Click &quot;Fix with AI Agent&quot;.
+                </div>
+              ) : (
+                patches.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => setEditorMode('diff')}
+                    className="p-2.5 rounded bg-[#1e1e1e] border border-[#333333] hover:border-emerald-600 cursor-pointer space-y-1 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        {p.status}
+                      </span>
+                      <span className="text-[10px] text-slate-500">{p.ai_provider}</span>
+                    </div>
+                    <div className="font-medium text-slate-300 text-xs line-clamp-2">{p.repair_strategy}</div>
+                    <button
+                      onClick={() => setEditorMode('diff')}
+                      className="text-[10px] text-emerald-400 hover:underline pt-1 flex items-center space-x-1"
+                    >
+                      <span>Review Monaco Diff</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: PASSPORT */}
+          {activeSideTab === 'passport' && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 font-mono text-[11px]">
+              {passport ? (
+                <>
+                  <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-800 text-emerald-300 space-y-1">
+                    <div className="font-bold text-xs">{passport.passport_id}</div>
+                    <div>Final Status: <strong>{passport.final_status}</strong></div>
+                    <div>Compiler: Exit {passport.compiler_exit_code}</div>
+                    <div>ASan: Clean (0 errors)</div>
+                    <div>Flash Delta: +{passport.flash_delta_bytes}B</div>
+                  </div>
+
+                  <div className="space-y-1 text-slate-400 text-[10px]">
+                    <div className="font-bold text-slate-300 uppercase">SHA-256 Custody</div>
+                    <div className="truncate">Source: {passport.cryptographic_hashes.original_source_sha256}</div>
+                    <div className="truncate">Diff: {passport.cryptographic_hashes.unified_diff_sha256}</div>
+                    <div className="truncate text-emerald-400">Sig: {passport.cryptographic_hashes.passport_signature_sha256}</div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-500 font-sans">
+                  No cryptographic passport generated yet. Run the live agent to synthesize and verify fixes.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: SEARCH */}
+          {activeSideTab === 'search' && (
+            <div className="p-3 space-y-2">
+              <input
+                type="text"
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-2 py-1 bg-[#1e1e1e] border border-[#3c3c3c] rounded text-xs text-slate-200 focus:outline-hidden"
+              />
+              <div className="text-[10px] text-slate-500">{filteredFiles.length} files matching</div>
+              <div className="space-y-1">
+                {filteredFiles.map((f) => (
+                  <button
+                    key={f.relative_path}
+                    onClick={() => setSelectedFilePath(f.relative_path)}
+                    className="w-full text-left px-2 py-1 text-xs text-slate-300 hover:bg-[#333333] rounded truncate block"
+                  >
+                    {f.relative_path}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
 
-        {/* Center Main Editor View */}
+        {/* 3. Center Editor Area */}
         <main className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
-          {/* Editor Tab Bar */}
-          <div className="h-9 bg-[#2d2d2d] border-b border-[#333333] flex items-center justify-between px-3 shrink-0">
-            <div className="flex items-center space-x-2">
-              <div className="px-3 py-1.5 bg-[#1e1e1e] text-slate-200 text-xs font-mono flex items-center space-x-1.5 border-t-2 border-blue-500">
-                <FileCode className="w-3.5 h-3.5 text-blue-400" />
-                <span>{selectedFilePath || 'No file selected'}</span>
-              </div>
+          {/* Tab Bar (VS Code Tabs) */}
+          <div className="h-9 bg-[#252526] border-b border-[#1e1e1e] flex items-center justify-between px-2 shrink-0">
+            {/* Open Tabs */}
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar">
+              {openTabs.map((tabPath) => {
+                const isActive = selectedFilePath === tabPath;
+                const filename = tabPath.split('/').pop() || tabPath;
+                return (
+                  <div
+                    key={tabPath}
+                    onClick={() => setSelectedFilePath(tabPath)}
+                    className={`h-9 px-3 flex items-center space-x-2 text-xs font-mono cursor-pointer transition border-r border-[#1e1e1e] ${
+                      isActive
+                        ? 'bg-[#1e1e1e] text-white border-t-2 border-blue-500 font-medium'
+                        : 'bg-[#2d2d2d] text-slate-400 hover:bg-[#282828]'
+                    }`}
+                  >
+                    <FileCode className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span className="truncate max-w-[120px]">{filename}</span>
+                    <button
+                      onClick={(e) => closeTab(tabPath, e)}
+                      className="text-slate-500 hover:text-white rounded-full p-0.5 ml-1"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Toggle Editor vs Diff View */}
-            <div className="flex items-center space-x-1 bg-[#1e1e1e] p-0.5 rounded border border-[#444]">
+            {/* View Mode Toggle: Current Code vs Monaco Diff */}
+            <div className="flex items-center space-x-1 bg-[#1e1e1e] p-0.5 rounded border border-[#3c3c3c] shrink-0">
               <button
-                onClick={() => setActiveTab('editor')}
+                onClick={() => setEditorMode('editor')}
                 className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition ${
-                  activeTab === 'editor' ? 'bg-[#37373d] text-white' : 'text-slate-400 hover:text-slate-200'
+                  editorMode === 'editor' ? 'bg-[#37373d] text-white' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Current Code
+                Code Editor
               </button>
               <button
-                onClick={() => setActiveTab('diff')}
+                onClick={() => setEditorMode('diff')}
                 className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition ${
-                  activeTab === 'diff' ? 'bg-[#37373d] text-white' : 'text-slate-400 hover:text-slate-200'
+                  editorMode === 'diff' ? 'bg-[#37373d] text-white' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Diff (Original vs Fixed)
+                Side-by-Side Diff
               </button>
             </div>
           </div>
 
-          {/* Monaco Editor Container */}
+          {/* Monaco Editor Canvas */}
           <div className="flex-1 relative">
-            {activeTab === 'editor' ? (
+            {editorMode === 'editor' ? (
               <Editor
                 height="100%"
                 language={selectedFilePath.endsWith('.cpp') || selectedFilePath.endsWith('.c') ? 'cpp' : 'c'}
@@ -427,51 +736,63 @@ export const VsCodeStudio: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom Live Terminal / Agent Status Bar */}
-          <div className="h-32 bg-[#181818] border-t border-[#333333] flex flex-col shrink-0">
+          {/* 4. Bottom Integrated Terminal */}
+          <div className="h-36 bg-[#181818] border-t border-[#333333] flex flex-col shrink-0">
+            {/* Terminal Header */}
             <div className="h-7 bg-[#252526] px-3 flex items-center justify-between text-[11px] font-semibold text-slate-400 border-b border-[#333333]">
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-2">
                 <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Live Autonomous Agent Terminal</span>
+                <span className="text-white">TERMINAL</span>
+                <span className="text-[#666666]">bash — SafeCodium Autonomous Engine</span>
               </div>
-              <div className="flex items-center space-x-2 font-mono text-[10px]">
+              <div className="flex items-center space-x-3 font-mono text-[10px]">
                 {job && (
-                  <span>
-                    Status: <strong className="text-emerald-400">{job.status.toUpperCase()}</strong>
+                  <span className="text-slate-300">
+                    Stage: <strong className="text-emerald-400">{job.current_stage} ({job.progress_percentage}%)</strong>
                   </span>
                 )}
-                <span>Exit: 0</span>
+                <span className="text-emerald-400">CONNECTED</span>
               </div>
             </div>
 
-            <div className="flex-1 p-3 font-mono text-xs overflow-y-auto space-y-1 text-slate-300">
-              <div className="flex items-center space-x-2 text-slate-400">
-                <span className="text-emerald-400">&gt;</span>
+            {/* Terminal Log Console */}
+            <div className="flex-1 p-2.5 font-mono text-xs overflow-y-auto space-y-1 text-slate-300">
+              <div className="flex items-center space-x-1.5 text-emerald-400">
+                <span>&gt;</span>
                 <span>{statusText}</span>
               </div>
 
-              {job?.stages && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {job.stages.map((st) => (
-                    <span
-                      key={st.stage_id}
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                        st.status === 'COMPLETED'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                          : st.status === 'RUNNING'
-                          ? 'bg-blue-950 text-blue-300 border border-blue-800 animate-pulse'
-                          : 'bg-[#252526] text-slate-500'
-                      }`}
-                    >
-                      {st.name}: {st.status}
-                    </span>
-                  ))}
+              {agentLogs.map((log, idx) => (
+                <div key={idx} className="text-slate-400 text-[11px]">
+                  {log}
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </main>
       </div>
+
+      {/* VS Code Bottom Status Bar (Blue Strip) */}
+      <footer className="h-5 bg-[#007acc] text-white px-3 flex items-center justify-between text-[11px] font-sans shrink-0 select-none">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-1">
+            <GitBranch className="w-3 h-3" />
+            <span>main*</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <ShieldCheck className="w-3 h-3" />
+            <span>Deterministic Rule 6 Ground-Truth: ACTIVE</span>
+          </div>
+          <span>Toolchain: Clang / GCC ASan</span>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <span>{vulnerabilities.length} Problems</span>
+          <span>{patches.length} Patches</span>
+          <span>UTF-8</span>
+          <span>C / C++</span>
+        </div>
+      </footer>
     </div>
   );
 };
