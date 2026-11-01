@@ -111,6 +111,27 @@ CWE_CATALOG: Dict[str, CweDefinition] = {
             "Denial of Service",
         ],
     ),
+    "CWE-COMPILE-ERR": CweDefinition(
+        cwe_id="CWE-COMPILE-ERR",
+        name="C/C++ Compilation or Syntax Diagnostic Error",
+        description="The source code fails deterministic compiler or syntax validation checks.",
+        extended_description=(
+            "Compilation errors include syntax anomalies, missing delimiters, undeclared identifiers, "
+            "type mismatches, or header omissions that prevent compilation into valid firmware binaries."
+        ),
+        default_severity="HIGH",
+        cvss_base_score=7.0,
+        cvss_vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        iot_impact="Prevents firmware artifact generation and breaks the continuous deployment pipeline.",
+        mitigation_strategies=[
+            "Fix syntax error, add missing symbols, correct typing, and verify matching brackets.",
+            "Ensure required header files are included and functions are declared.",
+        ],
+        common_consequences=[
+            "Build Failure",
+            "Denial of Service",
+        ],
+    ),
 }
 
 
@@ -132,4 +153,3 @@ def get_cwe_metadata(cwe_id: str) -> CweDefinition:
         mitigation_strategies=["Review code logic and apply defensive checks."],
         common_consequences=["Unexpected system behavior"],
     )
-

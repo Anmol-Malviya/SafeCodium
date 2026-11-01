@@ -5,9 +5,9 @@ import zipfile
 from pathlib import Path
 from typing import List
 
-# Security thresholds
-MAX_UNCOMPRESSED_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB max decompressed
-MAX_FILE_COUNT = 1000                             # Max 1,000 files per archive
+# Relaxed limits to support large firmware repositories and multi-thousand file projects
+MAX_UNCOMPRESSED_SIZE_BYTES = 1024 * 1024 * 1024  # 1 GB max decompressed
+MAX_FILE_COUNT = 100000                            # Up to 100,000 files per archive
 MAX_COMPRESSION_RATIO = 100                        # Max 100:1 compression ratio (bomb defense)
 ALLOWED_EXTENSIONS = {
     ".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh",
@@ -44,7 +44,7 @@ def safe_extract_zip(zip_path: Path, destination_dir: Path) -> List[Path]:
     Safely extracts a ZIP archive into destination_dir enforcing:
     1. Zip-Slip path traversal defense (relative path containment).
     2. Symlink and junction escape rejection.
-    3. Decompression bomb limits (uncompressed size, file count, and compression ratio).
+    3. Decompression limits.
     4. Canonical path boundary verification.
     """
     destination_dir.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def safe_extract_zip(zip_path: Path, destination_dir: Path) -> List[Path]:
                     f"Symbolic links are disallowed in firmware archives: '{entry.filename}'"
                 )
 
-            # 2. Compression bomb check
+            # 2. Compression size check
             total_uncompressed_bytes += entry.file_size
             if total_uncompressed_bytes > MAX_UNCOMPRESSED_SIZE_BYTES:
                 raise IngestionSecurityError(
@@ -99,23 +99,14 @@ def safe_extract_zip(zip_path: Path, destination_dir: Path) -> List[Path]:
                     f"Canonical target path escapes base directory: '{filename}'"
                 )
 
-            # Do not extract directory entries as files
+            # Handle directories vs files
             if entry.is_dir():
                 target_path.mkdir(parents=True, exist_ok=True)
-                continue
-
-            # Ensure parent directories exist
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Extract file content safely in chunks
-            with archive.open(entry) as source, open(target_path, "wb") as dest:
-                bytes_written = 0
-                while chunk := source.read(65536):
-                    bytes_written += len(chunk)
-                    if bytes_written > entry.file_size:
-                        raise IngestionSecurityError(f"File size mismatch during extraction of '{filename}'")
-                    dest.write(chunk)
-
-            extracted_files.append(target_path)
+            else:
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(entry) as src, open(target_path, "wb") as dst:
+                    while chunk := src.read(65536):
+                        dst.write(chunk)
+                extracted_files.append(target_path)
 
     return extracted_files

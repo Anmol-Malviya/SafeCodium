@@ -23,7 +23,7 @@ from backend.app.services.ingestion.workspace import WorkspaceManager
 
 router = APIRouter(prefix="/projects", tags=["Project Ingestion"])
 
-MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB max request size
+MAX_UPLOAD_SIZE = 1024 * 1024 * 1024  # 1 GB max request size
 
 
 @router.post("/upload", response_model=ApiResponse[ProjectResponse], status_code=status.HTTP_201_CREATED)

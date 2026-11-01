@@ -1,16 +1,18 @@
 """Safe Vibe AI — Composite Static Analysis Engine."""
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logging import logger
 from backend.app.models.project import Project, Scan, Vulnerability
 from backend.app.services.analysis.ast_scanner import AstSecurityScanner
 from backend.app.services.analysis.rules import SecurityFindingRaw
+from backend.app.services.verification.compiler_harness import DualCompilerHarness
 
 
 class AnalysisEngine:
@@ -23,7 +25,7 @@ class AnalysisEngine:
         db: AsyncSession,
         scanner_type: str = "composite",
     ) -> Scan:
-        """Executes vulnerability scan on project's shadow workspace."""
+        """Executes vulnerability and compilation error scan on project's shadow workspace."""
         shadow_dir = Path(project.shadow_path)
         logger.info(f"Running static security scan on project '{project.name}' at {shadow_dir}")
 
@@ -49,6 +51,42 @@ class AnalysisEngine:
                     file_findings = AstSecurityScanner.scan_file(file_path, rel_path)
                     for f in file_findings:
                         raw_findings.append((rel_path, f))
+
+                    # 1b. Compile Diagnostics Pass (detects syntax errors, missing tokens, type mismatches)
+                    comp_res = DualCompilerHarness.compile_file(str(file_path))
+                    if not comp_res.success:
+                        for diag in comp_res.diagnostics:
+                            if "error:" in diag:
+                                # Extract line number if available e.g., "file.cpp:12: error: ..."
+                                match_line = re.search(r":(\d+):(?:\d+:)?\s*error:\s*(.*)", diag)
+                                if match_line:
+                                    err_line = int(match_line.group(1))
+                                    err_msg = match_line.group(2).strip()
+                                else:
+                                    err_line = 1
+                                    err_msg = diag.strip()
+
+                                # Try reading line code
+                                try:
+                                    flines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                                    vulnerable_code = flines[err_line - 1].strip() if 0 < err_line <= len(flines) else ""
+                                except Exception:
+                                    vulnerable_code = ""
+
+                                raw_findings.append((
+                                    rel_path,
+                                    SecurityFindingRaw(
+                                        cwe_id="CWE-COMPILE-ERR",
+                                        title=f"Compilation Diagnostic: {err_msg[:60]}",
+                                        severity="HIGH",
+                                        line_number=err_line,
+                                        line_end=err_line,
+                                        function_name=None,
+                                        vulnerable_code=vulnerable_code or err_msg,
+                                        explanation=diag,
+                                        scanner_source="compiler_diagnostic_analyzer",
+                                    ),
+                                ))
 
         # 2. Check for Semgrep if installed on PATH
         semgrep_binary = shutil.which("semgrep")
@@ -116,11 +154,10 @@ class AnalysisEngine:
         # Update Scan record
         scan.status = "completed"
         scan.findings_count = len(deduped_vulnerabilities)
-        scan.raw_output = f"Scan complete. Discovered {len(deduped_vulnerabilities)} security findings."
+        scan.raw_output = f"Scan complete. Discovered {len(deduped_vulnerabilities)} findings (vulnerabilities and syntax errors)."
 
         await db.commit()
         await db.refresh(scan)
 
         logger.info(f"Scan {scan.id} finished with {scan.findings_count} findings.")
         return scan
-

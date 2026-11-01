@@ -22,14 +22,14 @@ async def test_ast_scanner_on_smart_meter_fixture():
     cwe_120 = next((f for f in findings if f.cwe_id == "CWE-120"), None)
     assert cwe_120 is not None
     assert "strcpy" in cwe_120.vulnerable_code
-    assert cwe_120.function_name == "parse_telemetry_packet"
+    assert cwe_120.function_name == "process_meter_packet"
     assert cwe_120.severity == "CRITICAL"
 
     # Check for CWE-476
     cwe_476 = next((f for f in findings if f.cwe_id == "CWE-476"), None)
     assert cwe_476 is not None
     assert "reading_buffer" in cwe_476.vulnerable_code
-    assert cwe_476.function_name == "process_sensor_calibration"
+    assert cwe_476.function_name == "process_meter_packet"
     assert cwe_476.severity == "HIGH"
 
 

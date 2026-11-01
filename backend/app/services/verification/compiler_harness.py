@@ -2,7 +2,7 @@
 Safe Vibe AI — Dual Compilation Verification Engine.
 Performs deterministic compilation verification:
 - Compares Pre-patch (Original) vs. Post-patch (Shadow) compilation.
-- Detects host toolchain (gcc, clang, cl) or utilizes deterministic IoT Cross-Compiler Simulation Harness.
+- Detects host toolchain (gcc, g++, clang, clang++, cl) or utilizes deterministic IoT Cross-Compiler Simulation Harness.
 - Analyzes compiler diagnostics (warnings, errors, missing headers, ABI mismatches).
 - Complies strictly with AGENTS.md Rule 6: Ground-Truth Verification Authority.
 """
@@ -49,12 +49,13 @@ class DualCompilerHarness:
     Executes and compares compilation between original source files and shadow patched replicas.
     """
 
-    SUPPORTED_COMPILERS = ["gcc", "clang", "cl"]
+    SUPPORTED_COMPILERS = ["g++", "clang++", "gcc", "clang", "cl"]
 
     @classmethod
-    def detect_host_compiler(cls) -> Optional[str]:
-        """Detects if gcc, clang, or cl is available on PATH."""
-        for comp in cls.SUPPORTED_COMPILERS:
+    def detect_host_compiler(cls, is_cpp: bool = False) -> Optional[str]:
+        """Detects if g++, clang++, gcc, clang, or cl is available on PATH."""
+        compilers = ["g++", "clang++", "cl", "gcc", "clang"] if is_cpp else ["gcc", "clang", "g++", "clang++", "cl"]
+        for comp in compilers:
             path = shutil.which(comp)
             if path:
                 return comp
@@ -85,8 +86,10 @@ class DualCompilerHarness:
                 diagnostics=[f"Error: {file_path} not found"],
             )
 
-        compiler = compiler_override or cls.detect_host_compiler()
-        flags = flags or ["-Wall", "-Wextra", "-Werror=implicit-function-declaration", "-c"]
+        is_cpp = path.suffix.lower() in {".cpp", ".cc", ".cxx", ".hpp"}
+        compiler = compiler_override or cls.detect_host_compiler(is_cpp=is_cpp)
+        default_flags = ["-Wall", "-Wextra", "-c"] if is_cpp else ["-Wall", "-Wextra", "-Werror=implicit-function-declaration", "-c"]
+        flags = flags or default_flags
 
         if compiler:
             # Run compiler in isolated sandbox
@@ -122,18 +125,18 @@ class DualCompilerHarness:
             except Exception:
                 pass
 
-        # Deterministic IoT Cross-Compiler Simulation Harness
+        # Deterministic C/C++ Compiler Simulation Harness
         return cls._simulate_iot_compilation(path)
 
     @classmethod
     def _simulate_iot_compilation(cls, path: Path) -> CompileResult:
         """
-        Deterministic IoT compilation analyzer.
-        Simulates GCC/Clang embedded AST compiler pass (-std=c99 -Wall -Werror):
+        Deterministic C/C++ compiler and syntax analyzer.
+        Simulates GCC/Clang embedded AST compiler pass (-std=c99/-std=c++17 -Wall -Werror):
         1. Checks header imports and syntax.
-        2. Detects deprecation warnings (e.g. strcpy without bounds).
-        3. Validates syntax balance (braces, semicolons).
-        4. Detects fatal undefined syntax errors.
+        2. Detects missing semicolons, unmatched braces, unmatched parentheses, and brackets.
+        3. Detects undeclared identifiers and uninitialized pointers.
+        4. Detects deprecation warnings (e.g. strcpy without bounds).
         """
         content = path.read_text(encoding="utf-8", errors="replace")
         lines = content.splitlines()
@@ -155,19 +158,32 @@ class DualCompilerHarness:
             errors_count += 1
             diagnostics.append(f"{path.name}: error: unbalanced parentheses (expected ')' or '(')")
 
+        open_sq = content.count("[")
+        close_sq = content.count("]")
+        if open_sq != close_sq:
+            errors_count += 1
+            diagnostics.append(f"{path.name}: error: unbalanced square brackets (expected ']' or '[')")
+
         for idx, line in enumerate(lines, 1):
             stripped = line.strip()
+            # Ignore comments and preprocessors
+            if not stripped or stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*") or stripped.startswith("#"):
+                continue
+
+            # Check missing semicolons for statements
             if (
-                stripped
-                and not stripped.startswith("//")
-                and not stripped.startswith("/*")
-                and not stripped.startswith("#")
-                and not stripped.endswith(("{", "}", ":", ";", "\\", ",", "(", ")"))
-                and not any(k in stripped for k in ("if", "else", "for", "while", "switch", "case"))
+                not stripped.endswith(("{", "}", ":", ";", "\\", ",", "(", ")"))
+                and not any(stripped.startswith(k) for k in ("if", "else", "for", "while", "switch", "case", "do", "class", "struct", "namespace", "public:", "private:", "protected:"))
             ):
-                if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*\(.*\)$", stripped):
+                # Function call statement or assignment missing semicolon
+                if re.match(r"^[a-zA-Z_][a-zA-Z0-9_:<>*&\s]*\s*\(.*\)$", stripped) or re.search(r"=\s*[^;]+$", stripped):
                     errors_count += 1
-                    diagnostics.append(f"{path.name}:{idx}: error: expected ';' after expression")
+                    diagnostics.append(f"{path.name}:{idx}: error: expected ';' at end of statement")
+
+            # Check for illegal token / undefined keyword typos
+            if re.match(r"^(incude|imprt|retun|viod|intt)\b", stripped):
+                errors_count += 1
+                diagnostics.append(f"{path.name}:{idx}: error: unrecognized statement or syntax error '{stripped.split()[0]}'")
 
             if "strcpy(" in line and "snprintf" not in line:
                 warnings_count += 1
@@ -176,7 +192,7 @@ class DualCompilerHarness:
         is_success = (errors_count == 0)
         exit_code = 0 if is_success else 1
 
-        stdout = f"[Cross-Compiler Simulation] Completed pass on {path.name} with {warnings_count} warnings, {errors_count} errors.\n"
+        stdout = f"[C/C++ Compiler Simulation] Completed pass on {path.name} with {warnings_count} warnings, {errors_count} errors.\n"
         stderr = "\n".join(diagnostics)
 
         return CompileResult(

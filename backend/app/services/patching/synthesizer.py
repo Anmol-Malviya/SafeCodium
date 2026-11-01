@@ -25,7 +25,9 @@ class PatchSynthesizer:
             return "Enforce strict array index upper-bound verification before memory write."
         elif vuln.cwe_id == "CWE-416":
             return "Set freed pointer to NULL immediately following free() call."
-        return "Defensive bounds check and pointer validation."
+        elif vuln.cwe_id == "CWE-COMPILE-ERR":
+            return "Resolve C/C++ compilation diagnostic: repair syntax, add missing delimiters/symbols, verify type matches and correct header definitions."
+        return "Defensive bounds check, syntax verification and pointer validation."
 
     @classmethod
     async def synthesize_patch(
