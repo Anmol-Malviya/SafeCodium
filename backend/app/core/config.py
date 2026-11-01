@@ -1,4 +1,4 @@
-"""Safe Vibe AI — Core Application Settings."""
+"""SAFE-CODIUM — Core Application Settings."""
 
 from pathlib import Path
 from typing import List, Union
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     # Core
-    PROJECT_NAME: str = "Safe Vibe AI"
+    PROJECT_NAME: str = "SAFE-CODIUM"
     VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True

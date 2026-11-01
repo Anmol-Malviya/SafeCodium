@@ -76,7 +76,7 @@ export const Navbar: React.FC = () => {
             SA
           </div>
           <span className="hidden sm:inline-block text-xs font-semibold text-slate-700">
-            Safe Vibe AI
+            SAFE-CODIUM
           </span>
         </div>
       </div>

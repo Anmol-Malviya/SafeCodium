@@ -795,3 +795,39 @@ export const downloadOriginalProjectUrl = (projectId: string): string => {
   const token = getAuthToken();
   return resolveBaseUrl() + '/projects/' + projectId + '/download/original?token=' + encodeURIComponent(token);
 };
+
+
+export interface VibeChatPayload {
+  project_id: string;
+  file_path?: string;
+  code_snippet?: string;
+  prompt: string;
+  provider?: string;
+}
+
+export interface VibeChatResponseData {
+  reply: string;
+  explanation: string;
+  has_patch: boolean;
+  unified_diff?: string;
+  repaired_code?: string;
+  verification_mode: string;
+  model_name: string;
+}
+
+export interface ApplyVibePatchPayload {
+  project_id: string;
+  file_path: string;
+  patched_code?: string;
+  unified_diff?: string;
+}
+
+export const sendVibeChatMessage = async (payload: VibeChatPayload): Promise<VibeChatResponseData> => {
+  const response = await api.post<ApiResponse<VibeChatResponseData>>('/vibe-chat/message', payload);
+  return response.data.data;
+};
+
+export const applyVibeChatPatch = async (payload: ApplyVibePatchPayload): Promise<{ file_path: string; status: string }> => {
+  const response = await api.post<ApiResponse<{ file_path: string; status: string }>>('/vibe-chat/apply-code', payload);
+  return response.data.data;
+};

@@ -1,4 +1,4 @@
-"""Unit and Integration tests for Safe Vibe AI Backend Foundation."""
+"""Unit and Integration tests for SAFE-CODIUM Backend Foundation."""
 
 import pytest
 import pytest_asyncio
@@ -16,7 +16,7 @@ async def test_root_endpoint():
         response = await client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "Safe Vibe AI"
+        assert data["name"] == "SAFE-CODIUM"
         assert data["status"] == "ONLINE"
         assert "version" in data
 

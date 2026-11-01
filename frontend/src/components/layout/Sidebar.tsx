@@ -47,7 +47,7 @@ export const Sidebar: React.FC = () => {
           </div>
           <div>
             <div className="font-extrabold tracking-tight text-slate-900 text-sm">
-              SAFE VIBE AI
+              SAFE-CODIUM
             </div>
             <div className="text-[11px] font-medium text-slate-400">
               IoT Firmware Security

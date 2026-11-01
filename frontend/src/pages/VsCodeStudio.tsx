@@ -1,3 +1,4 @@
+import { VibeChatPanel } from '../components/workflow/VibeChatPanel';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Folder,
@@ -67,7 +68,7 @@ import {
 } from '../services/api';
 
 type TopNavTab = 'editor' | 'analysis' | 'repair' | 'verify' | 'reports';
-type RightPanelTab = 'ai-analysis' | 'findings' | 'patch' | 'diff';
+type RightPanelTab = 'vibe-chat' | 'ai-analysis' | 'findings' | 'patch' | 'diff';
 type ConsoleTab = 'terminal' | 'build' | 'sanitizer' | 'tests';
 
 export const VsCodeStudio: React.FC = () => {
@@ -457,7 +458,7 @@ export const VsCodeStudio: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-[#0F172A] leading-tight">
-                Safe Vibe AI
+                SAFE-CODIUM
               </span>
               <span className="text-[10px] text-[#64748B] font-medium leading-none">
                 Firmware Security
@@ -609,6 +610,13 @@ export const VsCodeStudio: React.FC = () => {
               className="p-1.5 rounded-md text-[#2563EB] bg-[#EFF6FF] transition"
             >
               <FileCode className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { setActiveRightTab('vibe-chat'); }}
+              title="Vibe Coding Copilot Chat"
+              className={`p-1.5 rounded-md transition ${activeRightTab === 'vibe-chat' ? 'text-blue-600 bg-blue-50' : 'hover:text-[#0F172A] hover:bg-[#F8FAFC]'}`}
+            >
+              <Sparkles className="w-4 h-4 text-blue-600" />
             </button>
             <button
               onClick={() => { setActiveRightTab('findings'); }}
@@ -1020,7 +1028,19 @@ export const VsCodeStudio: React.FC = () => {
           
           {/* Tabs: AI Analysis | Findings | Patch | Diff */}
           <div className="h-10 border-b border-[#E2E8F0] px-3 flex items-center justify-between bg-[#FFFFFF]">
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5">
+              <button
+                onClick={() => setActiveRightTab('vibe-chat')}
+                className={`flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold rounded-md transition shrink-0 ${
+                  activeRightTab === 'vibe-chat'
+                    ? 'bg-[#EFF6FF] text-[#2563EB] border border-blue-200 shadow-2xs'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>Vibe Chat</span>
+              </button>
+
               <button
                 onClick={() => setActiveRightTab('ai-analysis')}
                 className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${
@@ -1074,6 +1094,20 @@ export const VsCodeStudio: React.FC = () => {
           </div>
 
           {/* Right Panel Content */}
+          {activeRightTab === 'vibe-chat' ? (
+            <div className="flex-1 overflow-hidden h-full flex flex-col">
+              <VibeChatPanel
+                projectId={selectedProjectId}
+                currentFilePath={selectedFilePath}
+                currentCode={currentCode}
+                selectedProvider={selectedProvider}
+                onCodeUpdated={(newCode) => {
+                  setCurrentCode(newCode);
+                  addLog('VIBE_COPILOT', `Patch applied to ${selectedFilePath} in shadow workspace.`);
+                }}
+              />
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 text-xs">
             
             {/* TAB 1: AI ANALYSIS (Exact Match to Reference Card Layout) */}
@@ -1287,6 +1321,7 @@ export const VsCodeStudio: React.FC = () => {
               </div>
             )}
           </div>
+          )}
         </aside>
       </div>
 

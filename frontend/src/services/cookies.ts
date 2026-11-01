@@ -1,5 +1,5 @@
 /**
- * Cookie Management Utilities for Safe Vibe AI
+ * Cookie Management Utilities for SAFE-CODIUM
  * Handles client-side persistent state, user preferences, and session tokens.
  */
 

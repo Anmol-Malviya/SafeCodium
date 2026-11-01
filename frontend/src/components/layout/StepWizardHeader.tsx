@@ -89,7 +89,7 @@ export const StepWizardHeader: React.FC = () => {
               SV
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="font-bold text-slate-900 tracking-tight text-sm">Safe Vibe AI</span>
+              <span className="font-bold text-slate-900 tracking-tight text-sm">SAFE-CODIUM</span>
               <span className="text-[10px] font-medium text-slate-400 hidden sm:inline">IoT Synthesizer</span>
             </div>
           </div>
