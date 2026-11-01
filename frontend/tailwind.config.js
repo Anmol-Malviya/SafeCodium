@@ -4,48 +4,46 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        brand: {
+          blue: '#2563EB',
+          'blue-light': '#EFF6FF',
+          'blue-hover': '#1D4ED8',
+          bg: '#FFFFFF',
+          surface: '#F8FAFC',
+          border: '#E2E8F0',
+          'border-light': '#F1F5F9',
+          text: '#0F172A',
+          muted: '#64748B',
+          success: '#10B981',
+          'success-light': '#ECFDF5',
+          warning: '#F59E0B',
+          'warning-light': '#FFFBEB',
+          danger: '#EF4444',
+          'danger-light': '#FEF2F2',
+        },
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb', // Core brand blue
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#EFF6FF',
+          100: '#DBEAFE',
+          200: '#BFDBFE',
+          300: '#93C5FD',
+          400: '#60A5FA',
+          500: '#3B82F6',
+          600: '#2563EB',
+          700: '#1D4ED8',
+          800: '#1E40AF',
+          900: '#1E3A8A',
         },
-        slate: {
-          850: '#151e2e',
-          950: '#0b0f19',
-        },
-        cyber: {
-          base: '#f8fafc',
-          surface: '#ffffff',
-          card: '#ffffff',
-          border: '#e2e8f0',
-          muted: '#64748b',
-          text: '#0f172a',
-          accent: '#2563eb',      // modern primary blue
-          emerald: '#10b981',     // verified / safe
-          amber: '#f59e0b',       // warning
-          rose: '#ef4444',        // critical / bug
-          purple: '#8b5cf6',      // AI synthesis
-        }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       },
       boxShadow: {
-        'soft': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
-        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
-        'float': '0 10px 25px -3px rgba(37, 99, 235, 0.1), 0 4px 6px -2px rgba(37, 99, 235, 0.05)',
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'panel': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
       }
     },
   },

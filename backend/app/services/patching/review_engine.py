@@ -158,7 +158,6 @@ class PatchReviewEngine:
                 # Find removal lines block in result_lines
                 for s_idx in range(len(result_lines)):
                     if clean_line(result_lines[s_idx]) == removals_clean[0]:
-                        # Check subsequent removals
                         curr_r = 1
                         curr_s = s_idx + 1
                         while curr_s < len(result_lines) and curr_r < len(removals_clean):
@@ -170,7 +169,6 @@ class PatchReviewEngine:
                                 break
                             curr_s += 1
                         if curr_r == len(removals_clean):
-                            # Matched removal block! Now look backward for leading context
                             lead_ctx = []
                             for hl in hunk_lines:
                                 if hl.startswith("-"):
@@ -180,7 +178,6 @@ class PatchReviewEngine:
 
                             actual_start = s_idx
                             if lead_ctx:
-                                # Walk back to match lead_ctx
                                 b_curr = s_idx - 1
                                 ctx_idx = len(lead_ctx) - 1
                                 while b_curr >= 0 and ctx_idx >= 0:
@@ -190,7 +187,6 @@ class PatchReviewEngine:
                                 if ctx_idx < 0:
                                     actual_start = b_curr + 1
 
-                            # Also match trailing context in hunk
                             trail_ctx = []
                             seen_removals = False
                             for hl in hunk_lines:
@@ -213,6 +209,22 @@ class PatchReviewEngine:
                             matched_start = actual_start
                             matched_end = actual_end
                             break
+            elif expected_old:
+                # Pure insertion hunk with context lines!
+                # Find where expected_old appears in result_lines
+                exp_clean = [clean_line(e) for e in expected_old if clean_line(e)]
+                if exp_clean:
+                    for s_idx in range(len(result_lines)):
+                        if clean_line(result_lines[s_idx]) == exp_clean[0]:
+                            e_match = True
+                            for k in range(1, len(exp_clean)):
+                                if s_idx + k >= len(result_lines) or clean_line(result_lines[s_idx + k]) != exp_clean[k]:
+                                    e_match = False
+                                    break
+                            if e_match:
+                                matched_start = s_idx
+                                matched_end = s_idx + len(exp_clean)
+                                break
 
             # Format replacement lines
             replacement_formatted = [l if l.endswith("\n") else l + "\n" for l in replacement]

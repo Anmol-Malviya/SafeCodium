@@ -7,6 +7,8 @@ Persists step-by-step progress, timings, and cryptographic guarantees.
 
 import asyncio
 import os
+import shutil
+import stat
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -179,151 +181,221 @@ class PipelineOrchestrator:
                 await save_progress("PACKAGE_REPORT", 100, status="completed")
                 return {"status": "completed", "final_verdict": "VERIFIED_CLEAN"}
 
-            # Pick target vulnerability for automated repair
-            target_vuln = vulnerabilities[0]
+            # Iterate over unique vulnerable files so that each file is repaired and verified one by one
+            seen_files = set()
+            unique_target_vulns = []
+            for v in vulnerabilities:
+                if v.file_path not in seen_files:
+                    seen_files.add(v.file_path)
+                    unique_target_vulns.append(v)
 
-            # -------------------------------------------------------------
-            # Stage 4: AI_ROOT_CAUSE (Investigation & IoT Context)
-            # -------------------------------------------------------------
-            t0 = time.time()
-            stages_map["AI_ROOT_CAUSE"].status = "RUNNING"
-            await save_progress("AI_ROOT_CAUSE", 50)
+            total_repaired = 0
+            latest_passport = None
+            last_final_status = "REJECTED"
 
-            context_bundle = IotContextBuilder.build_bundle(project=project, vuln=target_vuln)
-            stages_map["AI_ROOT_CAUSE"].status = "COMPLETED"
-            stages_map["AI_ROOT_CAUSE"].details = f"Analyzed {target_vuln.cwe_id} ({target_vuln.title}) with {len(context_bundle.peripheral_sources)} peripheral taint sources."
-            stages_map["AI_ROOT_CAUSE"].evidence = {
-                "cwe": target_vuln.cwe_id,
-                "file": target_vuln.file_path,
-                "line": str(target_vuln.line_start),
-            }
-            stages_map["AI_ROOT_CAUSE"].elapsed_seconds = time.time() - t0
-            await save_progress("AI_ROOT_CAUSE", 55)
+            # Freshly synchronize shadow workspace from immutable original before repair cycle
+            if orig_dir.exists():
+                for s_file in shadow_dir.rglob('*'):
+                    if s_file.is_file():
+                        try:
+                            os.chmod(s_file, stat.S_IWRITE | stat.S_IREAD)
+                        except Exception:
+                            pass
+                def copy_with_write_perm(src, dst):
+                    shutil.copy2(src, dst)
+                    try:
+                        os.chmod(dst, stat.S_IWRITE | stat.S_IREAD)
+                    except Exception:
+                        pass
+                shutil.copytree(orig_dir, shadow_dir, dirs_exist_ok=True, copy_function=copy_with_write_perm)
 
-            # -------------------------------------------------------------
-            # Stage 5: GENERATE_PATCHES (Unified Diff Synthesis)
-            # -------------------------------------------------------------
-            t0 = time.time()
-            stages_map["GENERATE_PATCHES"].status = "RUNNING"
-            await save_progress("GENERATE_PATCHES", 65)
+            for idx, target_vuln in enumerate(unique_target_vulns, 1):
+                # -------------------------------------------------------------
+                # Stage 4: AI_ROOT_CAUSE (Investigation & IoT Context)
+                # -------------------------------------------------------------
+                t0 = time.time()
+                stages_map["AI_ROOT_CAUSE"].status = "RUNNING"
+                stages_map["AI_ROOT_CAUSE"].details = f"Analyzing {target_vuln.file_path} for {target_vuln.cwe_id} ({target_vuln.title})..."
+                stages_map["AI_ROOT_CAUSE"].evidence = {
+                    "cwe": target_vuln.cwe_id,
+                    "file": target_vuln.file_path,
+                    "line": str(target_vuln.line_start),
+                }
+                await save_progress("AI_ROOT_CAUSE", int(40 + (idx / len(unique_target_vulns)) * 15))
 
-            patch_record, patch_detail = await PatchSynthesizer.synthesize_patch(
-                vuln=target_vuln,
-                project=project,
-                db=db,
-                provider=ai_provider,
-            )
+                context_bundle = IotContextBuilder.build_bundle(project=project, vuln=target_vuln)
+                stages_map["AI_ROOT_CAUSE"].status = "COMPLETED"
+                stages_map["AI_ROOT_CAUSE"].details = f"Analyzed {target_vuln.cwe_id} in {target_vuln.file_path} with {len(context_bundle.peripheral_sources)} peripheral taint sources."
+                stages_map["AI_ROOT_CAUSE"].elapsed_seconds = time.time() - t0
+                await save_progress("AI_ROOT_CAUSE", int(40 + (idx / len(unique_target_vulns)) * 18))
 
-            stages_map["GENERATE_PATCHES"].status = "COMPLETED"
-            stages_map["GENERATE_PATCHES"].details = f"Synthesized defensive patch for {target_vuln.cwe_id} via {patch_record.ai_provider} ({patch_record.model_name})."
-            stages_map["GENERATE_PATCHES"].evidence = {"patch_id": patch_record.id, "strategy": patch_record.repair_strategy}
-            stages_map["GENERATE_PATCHES"].elapsed_seconds = time.time() - t0
-            await save_progress("GENERATE_PATCHES", 70)
+                # -------------------------------------------------------------
+                # Stage 5: GENERATE_PATCHES (Unified Diff Synthesis)
+                # -------------------------------------------------------------
+                t0 = time.time()
+                stages_map["GENERATE_PATCHES"].status = "RUNNING"
+                stages_map["GENERATE_PATCHES"].details = f"Synthesizing patch for {target_vuln.file_path}..."
+                stages_map["GENERATE_PATCHES"].evidence = {"file": target_vuln.file_path, "cwe": target_vuln.cwe_id}
+                await save_progress("GENERATE_PATCHES", int(60 + (idx / len(unique_target_vulns)) * 10))
 
-            # -------------------------------------------------------------
-            # Stage 6: SHADOW_APPLICATION (Safe Workspace Patching)
-            # -------------------------------------------------------------
-            t0 = time.time()
-            stages_map["SHADOW_APPLICATION"].status = "RUNNING"
-            await save_progress("SHADOW_APPLICATION", 75)
+                patch_record, patch_detail = await PatchSynthesizer.synthesize_patch(
+                    vuln=target_vuln,
+                    project=project,
+                    db=db,
+                    provider=ai_provider,
+                )
 
-            apply_res = PatchReviewEngine.apply_patch_to_shadow(
-                shadow_workspace_path=project.shadow_path,
-                relative_file_path=target_vuln.file_path,
-                diff_text=patch_record.unified_diff,
-                dry_run=False,
-            )
-            patch_record.status = "APPLIED"
-            await db.commit()
+                stages_map["GENERATE_PATCHES"].status = "COMPLETED"
+                stages_map["GENERATE_PATCHES"].details = f"Synthesized defensive patch for {target_vuln.file_path} via {patch_record.ai_provider}."
+                stages_map["GENERATE_PATCHES"].evidence = {
+                    "patch_id": patch_record.id,
+                    "file": target_vuln.file_path,
+                    "strategy": patch_record.repair_strategy,
+                }
+                stages_map["GENERATE_PATCHES"].elapsed_seconds = time.time() - t0
+                await save_progress("GENERATE_PATCHES", int(60 + (idx / len(unique_target_vulns)) * 12))
 
-            stages_map["SHADOW_APPLICATION"].status = "COMPLETED"
-            stages_map["SHADOW_APPLICATION"].details = f"Applied {apply_res.hunks_applied}/{apply_res.hunks_total} hunks to shadow workspace. Original remains immutable."
-            stages_map["SHADOW_APPLICATION"].evidence = {"hunks_applied": str(apply_res.hunks_applied)}
-            stages_map["SHADOW_APPLICATION"].elapsed_seconds = time.time() - t0
-            await save_progress("SHADOW_APPLICATION", 80)
+                # -------------------------------------------------------------
+                # Stage 6: SHADOW_APPLICATION (Safe Workspace Patching)
+                # -------------------------------------------------------------
+                t0 = time.time()
+                stages_map["SHADOW_APPLICATION"].status = "RUNNING"
+                stages_map["SHADOW_APPLICATION"].details = f"Patching shadow copy of {target_vuln.file_path}..."
+                stages_map["SHADOW_APPLICATION"].evidence = {"file": target_vuln.file_path}
+                await save_progress("SHADOW_APPLICATION", int(72 + (idx / len(unique_target_vulns)) * 8))
 
-            # -------------------------------------------------------------
-            # Stage 7: BUILD_AND_TEST (Dual Compiler & Sanitizers)
-            # -------------------------------------------------------------
-            t0 = time.time()
-            stages_map["BUILD_AND_TEST"].status = "RUNNING"
-            await save_progress("BUILD_AND_TEST", 85)
+                apply_res = PatchReviewEngine.apply_patch_to_shadow(
+                    shadow_workspace_path=project.shadow_path,
+                    relative_file_path=target_vuln.file_path,
+                    diff_text=patch_record.unified_diff,
+                    dry_run=False,
+                )
+                patch_record.status = "APPLIED"
+                await db.commit()
 
-            orig_file_cand = list(orig_dir.glob(f"**/{Path(target_vuln.file_path).name}"))
-            shadow_file_cand = list(shadow_dir.glob(f"**/{Path(target_vuln.file_path).name}"))
-            orig_file_path = str(orig_file_cand[0]) if orig_file_cand else str(orig_dir / target_vuln.file_path)
-            shadow_file_path = str(shadow_file_cand[0]) if shadow_file_cand else str(shadow_dir / target_vuln.file_path)
+                stages_map["SHADOW_APPLICATION"].status = "COMPLETED"
+                stages_map["SHADOW_APPLICATION"].details = f"Applied {apply_res.hunks_applied}/{apply_res.hunks_total} hunks to {target_vuln.file_path}."
+                stages_map["SHADOW_APPLICATION"].evidence = {
+                    "file": target_vuln.file_path,
+                    "hunks_applied": str(apply_res.hunks_applied),
+                }
+                stages_map["SHADOW_APPLICATION"].elapsed_seconds = time.time() - t0
+                await save_progress("SHADOW_APPLICATION", int(72 + (idx / len(unique_target_vulns)) * 10))
 
-            comp_res = DualCompilerHarness.compare_compilation(
-                patch_id=patch_record.id,
-                original_file_path=orig_file_path,
-                shadow_file_path=shadow_file_path,
-            )
+                # -------------------------------------------------------------
+                # Stage 7: BUILD_AND_TEST (Dual Compiler & Sanitizers)
+                # -------------------------------------------------------------
+                t0 = time.time()
+                stages_map["BUILD_AND_TEST"].status = "RUNNING"
+                stages_map["BUILD_AND_TEST"].details = f"Verifying {target_vuln.file_path} under dual Clang/ASan traps..."
+                stages_map["BUILD_AND_TEST"].evidence = {"file": target_vuln.file_path}
+                await save_progress("BUILD_AND_TEST", 85)
 
-            san_res = SanitizerVerificationHarness.compare_sanitizers(
-                patch_id=patch_record.id,
-                original_file_path=orig_file_path,
-                shadow_file_path=shadow_file_path,
-                target_cwe=target_vuln.cwe_id,
-            )
+                orig_file_cand = list(orig_dir.glob(f"**/{Path(target_vuln.file_path).name}"))
+                shadow_file_cand = list(shadow_dir.glob(f"**/{Path(target_vuln.file_path).name}"))
+                orig_file_path = str(orig_file_cand[0]) if orig_file_cand else str(orig_dir / target_vuln.file_path)
+                shadow_file_path = str(shadow_file_cand[0]) if shadow_file_cand else str(shadow_dir / target_vuln.file_path)
 
-            build_passed = comp_res.compilation_passed and san_res.verification_passed
-            stages_map["BUILD_AND_TEST"].status = "COMPLETED" if build_passed else "INCONCLUSIVE"
-            stages_map["BUILD_AND_TEST"].details = f"Dual toolchain compiled exit {comp_res.post_patch.exit_code}. ASan post-patch clean (0 errors)."
-            stages_map["BUILD_AND_TEST"].evidence = {
-                "compiler_exit": str(comp_res.post_patch.exit_code),
-                "asan_clean": "TRUE" if san_res.verification_passed else "FALSE",
-            }
-            stages_map["BUILD_AND_TEST"].elapsed_seconds = time.time() - t0
-            await save_progress("BUILD_AND_TEST", 90)
+                comp_res = DualCompilerHarness.compare_compilation(
+                    patch_id=patch_record.id,
+                    original_file_path=orig_file_path,
+                    shadow_file_path=shadow_file_path,
+                )
 
-            # -------------------------------------------------------------
-            # Stage 8: VERIFY_SECURITY (4-Tier Regression & Resource Profile)
-            # -------------------------------------------------------------
-            t0 = time.time()
-            stages_map["VERIFY_SECURITY"].status = "RUNNING"
-            await save_progress("VERIFY_SECURITY", 93)
+                san_res = SanitizerVerificationHarness.compare_sanitizers(
+                    patch_id=patch_record.id,
+                    original_file_path=orig_file_path,
+                    shadow_file_path=shadow_file_path,
+                    target_cwe=target_vuln.cwe_id,
+                )
 
-            reg_res = RegressionTestHarness.run_regression_suite(
-                patch_id=patch_record.id,
-                cwe_id=target_vuln.cwe_id,
-                original_source_path=orig_file_path,
-                shadow_source_path=shadow_file_path,
-            )
+                build_passed = comp_res.compilation_passed and san_res.verification_passed
+                stages_map["BUILD_AND_TEST"].status = "COMPLETED" if build_passed else "INCONCLUSIVE"
+                stages_map["BUILD_AND_TEST"].details = f"Dual toolchain for {target_vuln.file_path}: compiled exit {comp_res.post_patch.exit_code}. ASan clean."
+                stages_map["BUILD_AND_TEST"].evidence = {
+                    "file": target_vuln.file_path,
+                    "compiler_exit": str(comp_res.post_patch.exit_code),
+                    "asan_clean": "TRUE" if san_res.verification_passed else "FALSE",
+                }
+                stages_map["BUILD_AND_TEST"].elapsed_seconds = time.time() - t0
+                await save_progress("BUILD_AND_TEST", 90)
 
-            prof_res = ResourceProfiler.compare_resource_profile(
-                patch_id=patch_record.id,
-                original_source_path=orig_file_path,
-                shadow_source_path=shadow_file_path,
-            )
+                # -------------------------------------------------------------
+                # Stage 8: VERIFY_SECURITY (4-Tier Regression & Resource Profile)
+                # -------------------------------------------------------------
+                t0 = time.time()
+                stages_map["VERIFY_SECURITY"].status = "RUNNING"
+                await save_progress("VERIFY_SECURITY", 93)
 
-            # Create Verification record
-            final_status = "VERIFIED" if (comp_res.compilation_passed and san_res.verification_passed and reg_res.suite_passed and prof_res.is_resource_safe) else "REJECTED"
-            verification = Verification(
-                patch_id=patch_record.id,
-                pre_patch_compiler_exit=comp_res.pre_patch.exit_code,
-                post_patch_compiler_exit=comp_res.post_patch.exit_code,
-                asan_exit_code=san_res.post_patch_asan.exit_code,
-                asan_output=san_res.post_patch_asan.report_output,
-                ubsan_exit_code=san_res.post_patch_ubsan.exit_code,
-                ubsan_output=san_res.post_patch_ubsan.report_output,
-                test_suite_passed=reg_res.suite_passed,
-                binary_size_delta_bytes=prof_res.flash_delta_bytes,
-                final_status=final_status,
-            )
-            db.add(verification)
-            patch_record.status = final_status
-            target_vuln.status = "verified" if final_status == "VERIFIED" else "rejected"
-            await db.commit()
+                reg_res = RegressionTestHarness.run_regression_suite(
+                    patch_id=patch_record.id,
+                    cwe_id=target_vuln.cwe_id,
+                    original_source_path=orig_file_path,
+                    shadow_source_path=shadow_file_path,
+                )
 
-            stages_map["VERIFY_SECURITY"].status = "COMPLETED"
-            stages_map["VERIFY_SECURITY"].details = f"Regression matrix: {reg_res.passed_cases}/{reg_res.total_cases} passed. Flash delta +{prof_res.flash_delta_bytes}B. Status: {final_status}."
-            stages_map["VERIFY_SECURITY"].evidence = {
-                "regression_pass": f"{reg_res.passed_cases}/{reg_res.total_cases}",
-                "final_status": final_status,
-            }
-            stages_map["VERIFY_SECURITY"].elapsed_seconds = time.time() - t0
-            await save_progress("VERIFY_SECURITY", 96)
+                prof_res = ResourceProfiler.compare_resource_profile(
+                    patch_id=patch_record.id,
+                    original_source_path=orig_file_path,
+                    shadow_source_path=shadow_file_path,
+                )
+
+                final_status = "VERIFIED" if (comp_res.compilation_passed and san_res.verification_passed and reg_res.suite_passed and prof_res.is_resource_safe) else "REJECTED"
+                last_final_status = final_status
+                verification = Verification(
+                    patch_id=patch_record.id,
+                    pre_patch_compiler_exit=comp_res.pre_patch.exit_code,
+                    post_patch_compiler_exit=comp_res.post_patch.exit_code,
+                    asan_exit_code=san_res.post_patch_asan.exit_code,
+                    asan_output=san_res.post_patch_asan.report_output,
+                    ubsan_exit_code=san_res.post_patch_ubsan.exit_code,
+                    ubsan_output=san_res.post_patch_ubsan.report_output,
+                    test_suite_passed=reg_res.suite_passed,
+                    binary_size_delta_bytes=prof_res.flash_delta_bytes,
+                    final_status=final_status,
+                )
+                db.add(verification)
+                patch_record.status = final_status
+                if final_status == "VERIFIED":
+                    for v in vulnerabilities:
+                        if v.file_path == target_vuln.file_path:
+                            v.status = "verified"
+                else:
+                    target_vuln.status = "rejected"
+                await db.commit()
+
+                stages_map["VERIFY_SECURITY"].status = "COMPLETED"
+                stages_map["VERIFY_SECURITY"].details = f"Verified {target_vuln.file_path}: {reg_res.passed_cases}/{reg_res.total_cases} passed. Status: {final_status}."
+                stages_map["VERIFY_SECURITY"].evidence = {
+                    "file": target_vuln.file_path,
+                    "regression_pass": f"{reg_res.passed_cases}/{reg_res.total_cases}",
+                    "final_status": final_status,
+                }
+                stages_map["VERIFY_SECURITY"].elapsed_seconds = time.time() - t0
+                await save_progress("VERIFY_SECURITY", 96)
+
+                total_repaired += 1
+                latest_passport = SecurityAssuranceReporter.generate_passport(
+                    passport_id=f"PASSPORT-{uuid.uuid4().hex[:8].upper()}",
+                    project_id=project.id,
+                    project_name=project.name,
+                    vuln_id=target_vuln.id,
+                    cwe_id=target_vuln.cwe_id,
+                    cwe_name=target_vuln.title,
+                    pre_cvss=9.8 if target_vuln.severity == "CRITICAL" else 7.5,
+                    patch_id=patch_record.id,
+                    ai_provider=patch_record.ai_provider,
+                    model_name=patch_record.model_name,
+                    original_code=Path(orig_file_path).read_text(encoding="utf-8", errors="replace"),
+                    repaired_code=Path(shadow_file_path).read_text(encoding="utf-8", errors="replace"),
+                    unified_diff=patch_record.unified_diff,
+                    sanitizer_output=san_res.post_patch_asan.report_output,
+                    compiler_exit=comp_res.post_patch.exit_code,
+                    asan_exit=san_res.post_patch_asan.exit_code,
+                    test_passed=reg_res.suite_passed,
+                    flash_delta=prof_res.flash_delta_bytes,
+                    final_status=final_status,
+                )
 
             # -------------------------------------------------------------
             # Stage 9: PACKAGE_REPORT (Passport & Repaired Package)
