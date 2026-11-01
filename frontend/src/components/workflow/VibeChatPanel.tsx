@@ -16,13 +16,18 @@ import {
   ArrowRight,
   Loader2,
   FilePlus,
-  Zap
+  Zap,
+  RotateCcw,
+  Download,
+  ThumbsUp
 } from 'lucide-react';
 import {
   sendVibeChatMessage,
   applyVibeChatPatch,
-  VibeChatResponseData
+  VibeChatResponseData,
+  downloadRepairedProjectUrl
 } from '../../services/api';
+import { api } from '../../services/api';
 
 interface VibeMessage {
   id: string;
@@ -31,6 +36,7 @@ interface VibeMessage {
   timestamp: string;
   data?: VibeChatResponseData;
   applied?: boolean;
+  rolledBack?: boolean;
 }
 
 interface VibeChatPanelProps {
@@ -52,7 +58,7 @@ export const VibeChatPanel: React.FC<VibeChatPanelProps> = ({
     {
       id: 'welcome',
       sender: 'assistant',
-      text: "👋 Hi! I'm your **SAFE-CODIUM Copilot**.\nTell me what to build or fix in this firmware codebase (e.g. *\"Create calculator.cpp\"*, *\"Fix buffer overflow in this file\"*, or *\"Add bounds checking\"*). Once approved, I will synthesize and create the verified code directly in your codebase!",
+      text: "👋 Hi! I'm your **SAFE-CODIUM Copilot**.\nI analyze firmware ASTs, synthesize secure C/C++ fixes, and provide full **Approval & Rollback** controls. Every approved change is preserved in your shadow build, ready for 1-click ZIP download!",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -122,26 +128,53 @@ export const VibeChatPanel: React.FC<VibeChatPanelProps> = ({
     }
   };
 
-  const handleApply = async (msgId: string, data?: VibeChatResponseData) => {
+  // 1. APPROVE & APPLY TO CODEBASE
+  const handleApprove = async (msgId: string, data?: VibeChatResponseData) => {
     if (!data || (!data.repaired_code && !data.unified_diff)) return;
 
     try {
+      const target = (data as any).target_file || currentFilePath;
       const res = await applyVibeChatPatch({
         project_id: projectId,
-        file_path: (data as any).target_file || currentFilePath,
+        file_path: target,
         patched_code: data.repaired_code,
         unified_diff: data.unified_diff
       });
 
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, applied: true } : m))
+        prev.map((m) => (m.id === msgId ? { ...m, applied: true, rolledBack: false } : m))
       );
 
       if (data.repaired_code && onCodeUpdated) {
-        onCodeUpdated(data.repaired_code, res.file_path || currentFilePath);
+        onCodeUpdated(data.repaired_code, res.file_path || target);
       }
     } catch (err: any) {
-      alert(`Failed to apply code: ${err?.response?.data?.detail || err.message}`);
+      alert(`Failed to approve code: ${err?.response?.data?.detail || err.message}`);
+    }
+  };
+
+  // 2. ROLLBACK TO ORIGINAL BASELINE
+  const handleRollback = async (msgId: string, data?: VibeChatResponseData) => {
+    const target = (data as any)?.target_file || currentFilePath;
+    if (!projectId || !target) return;
+
+    try {
+      const resp = await api.post('/vibe-chat/rollback-file', {
+        project_id: projectId,
+        file_path: target
+      });
+
+      const restored = resp.data.data?.restored_code || '';
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, applied: false, rolledBack: true } : m))
+      );
+
+      if (onCodeUpdated) {
+        onCodeUpdated(restored, target);
+      }
+    } catch (err: any) {
+      alert(`Rollback failed: ${err?.response?.data?.detail || err.message}`);
     }
   };
 
@@ -163,15 +196,29 @@ export const VibeChatPanel: React.FC<VibeChatPanelProps> = ({
           <div>
             <div className="text-xs font-bold text-slate-900 tracking-tight flex items-center space-x-1.5">
               <span>SAFE-CODIUM COPILOT</span>
-              <span className="text-[10px] px-1.5 py-0.2 bg-blue-50 text-blue-700 border border-blue-200 rounded font-semibold">
-                READY
+              <span className="text-[10px] px-1.5 py-0.2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
+                APPROVAL ACTIVE
               </span>
             </div>
-            <div className="text-[10px] text-slate-500 font-mono truncate max-w-[210px]">
+            <div className="text-[10px] text-slate-500 font-mono truncate max-w-[190px]">
               Active: {currentFilePath || 'No file selected'}
             </div>
           </div>
         </div>
+
+        {/* Global Download Verified Zip Action Button */}
+        {projectId && (
+          <a
+            href={downloadRepairedProjectUrl(projectId)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition shadow-2xs"
+            title="Download full project with all approved patches"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden sm:inline">Export ZIP</span>
+          </a>
+        )}
       </div>
 
       {/* Quick Prompts Bar */}
@@ -233,7 +280,7 @@ export const VibeChatPanel: React.FC<VibeChatPanelProps> = ({
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                       <span>
                         {(m.data as any).target_file && (m.data as any).target_file !== currentFilePath
-                          ? `New File: ${(m.data as any).target_file}`
+                          ? `Target: ${(m.data as any).target_file}`
                           : 'Synthesized Verified Code'}
                       </span>
                     </span>
@@ -272,33 +319,64 @@ export const VibeChatPanel: React.FC<VibeChatPanelProps> = ({
                     </pre>
                   )}
 
-                  {/* Approve and Create in Codebase Action Button */}
-                  <div className="pt-1.5 flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-slate-400 flex items-center space-x-1">
-                      <Zap className="w-3 h-3 text-amber-500" />
-                      <span>Verified: Updates live project codebase</span>
-                    </span>
-                    <button
-                      onClick={() => handleApply(m.id, m.data)}
-                      disabled={m.applied}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-xs ${
-                        m.applied
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 cursor-default'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98'
-                      }`}
-                    >
+                  {/* Dual Action: APPROVE & ROLLBACK Controls */}
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+                    <div className="flex items-center space-x-1.5">
                       {m.applied ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Created &amp; In Codebase</span>
-                        </>
+                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Approved &amp; Saved</span>
+                        </span>
+                      ) : m.rolledBack ? (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          Rolled Back to Baseline
+                        </span>
                       ) : (
-                        <>
-                          <FilePlus className="w-3.5 h-3.5" />
-                          <span>Approve &amp; Create in Codebase</span>
-                        </>
+                        <span className="text-[10px] text-slate-400">
+                          Awaiting User Review
+                        </span>
                       )}
-                    </button>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {/* Rollback Button */}
+                      <button
+                        onClick={() => handleRollback(m.id, m.data)}
+                        disabled={!m.applied}
+                        className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                          m.applied
+                            ? 'text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-200 shadow-2xs cursor-pointer'
+                            : 'text-slate-300 bg-slate-50 border-slate-200 cursor-not-allowed opacity-50'
+                        }`}
+                        title="Revert changes back to pristine original file"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Rollback</span>
+                      </button>
+
+                      {/* Approve Button */}
+                      <button
+                        onClick={() => handleApprove(m.id, m.data)}
+                        disabled={m.applied}
+                        className={`flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition shadow-xs ${
+                          m.applied
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 cursor-default'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98'
+                        }`}
+                      >
+                        {m.applied ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Approved</span>
+                          </>
+                        ) : (
+                          <>
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            <span>Approve &amp; Save</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

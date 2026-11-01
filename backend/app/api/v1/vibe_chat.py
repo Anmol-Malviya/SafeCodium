@@ -126,7 +126,6 @@ Please answer the user's request. If creating a new file or modifying existing, 
         logger.error(f"Vibe Copilot LLM error: {e}")
         raw_ai_text = f"Analyzed your request: '{request.prompt}'. Encountered API connection issue ({str(e)}). Applying local deterministic security heuristic."
 
-    # Extract diff and code blocks
     diff_match = re.search(r"```diff\n([\s\S]*?)\n```", raw_ai_text)
     c_match = re.search(r"```(?:c|cpp|C|CPP)\n([\s\S]*?)\n```", raw_ai_text)
 
@@ -134,7 +133,6 @@ Please answer the user's request. If creating a new file or modifying existing, 
     repaired_code = c_match.group(1).strip() if c_match else None
     has_patch = bool(unified_diff or repaired_code)
 
-    # Detect if user asked for a new file name
     target_file = request.file_path
     file_intent_match = re.search(r"(?:create|add|make|file:?)\s+([a-zA-Z0-9_\-\.\/]+\.(?:c|cpp|h|hpp))", request.prompt, re.IGNORECASE)
     if not file_intent_match:
@@ -223,4 +221,46 @@ async def apply_vibe_chat_code(
         success=True,
         message=f"Created/Updated {request.file_path} in codebase",
         data={"file_path": request.file_path, "status": "FILE_CREATED_IN_CODEBASE"},
+    )
+
+
+class RollbackVibeRequest(BaseModel):
+    project_id: str
+    file_path: str
+
+
+@router.post("/rollback-file", response_model=ApiResponse[Dict[str, str]])
+async def rollback_vibe_file(
+    request: RollbackVibeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Rolls back a modified file back to its pristine original uploaded state,
+    discarding all unverified or unwanted patches.
+    """
+    p_res = await db.execute(select(Project).where(Project.id == request.project_id))
+    project = p_res.scalar_one_or_none()
+    if not project or not project.shadow_path:
+        raise HTTPException(status_code=400, detail="Project workspace not available")
+
+    norm_rel = os.path.normpath(request.file_path).lstrip(os.sep).replace("/", os.sep)
+    shadow_f = os.path.join(project.shadow_path, norm_rel)
+    orig_base = project.original_path or project.source_path
+    orig_f = os.path.join(orig_base, norm_rel) if orig_base else None
+
+    restored_code = ""
+    if orig_f and os.path.exists(orig_f):
+        with open(orig_f, "r", encoding="utf-8", errors="ignore") as f:
+            restored_code = f.read()
+        with open(shadow_f, "w", encoding="utf-8") as f:
+            f.write(restored_code)
+    elif os.path.exists(shadow_f):
+        os.remove(shadow_f)
+        restored_code = ""
+
+    return ApiResponse(
+        success=True,
+        message=f"Rolled back {request.file_path} to clean baseline",
+        data={"file_path": request.file_path, "restored_code": restored_code, "status": "ROLLED_BACK"},
     )
