@@ -445,130 +445,33 @@ export const VsCodeStudio: React.FC = () => {
     <div className="flex flex-col h-screen w-screen bg-[#FFFFFF] text-[#0F172A] font-sans antialiased overflow-hidden select-none">
       
       {/* ========================================================= */}
-      {/* A. TOP NAVIGATION BAR                                     */}
+      {/* B. MAIN TOOLBAR & CONTROLS                                */}
       {/* ========================================================= */}
-      <header className="h-12 border-b border-[#E2E8F0] bg-[#FFFFFF] px-4 flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center space-x-6">
-          {/* Logo & Product Subtitle */}
-          <div className="flex items-center space-x-2.5">
+      <header className="h-14 border-b border-[#E2E8F0] bg-[#FFFFFF] px-4 flex items-center justify-between shrink-0 z-20 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        {/* Left Section: Branding + Project Selector */}
+        <div className="flex items-center space-x-3.5">
+          {/* Logo & Product Identity */}
+          <div className="flex items-center space-x-2.5 pr-2 border-r border-[#E2E8F0]">
             <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white font-bold text-sm tracking-wide shadow-sm">
               SV
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-[#0F172A] leading-tight flex items-center space-x-1.5">
-                <span>Safe Vibe AI</span>
+              <span className="text-sm font-semibold text-[#0F172A] leading-tight">
+                Safe Vibe AI
               </span>
-              <span className="text-[11px] text-[#64748B] font-medium leading-none">
-                IoT Firmware Security
+              <span className="text-[10px] text-[#64748B] font-medium leading-none">
+                Firmware Security
               </span>
             </div>
           </div>
 
-          {/* Nav Tabs */}
-          <nav className="flex items-center space-x-1 pl-4">
-            <button
-              onClick={() => setActiveNavTab('editor')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeNavTab === 'editor'
-                  ? 'bg-[#EFF6FF] text-[#2563EB] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
-              }`}
-            >
-              <FileCode className="w-4 h-4" />
-              <span>Editor</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveNavTab('analysis'); setActiveRightTab('findings'); }}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeNavTab === 'analysis'
-                  ? 'bg-[#EFF6FF] text-[#2563EB] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
-              }`}
-            >
-              <Activity className="w-4 h-4" />
-              <span>Analysis</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveNavTab('repair'); setActiveRightTab('patch'); }}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeNavTab === 'repair'
-                  ? 'bg-[#EFF6FF] text-[#2563EB] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
-              }`}
-            >
-              <Wrench className="w-4 h-4" />
-              <span>Repair</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveNavTab('verify'); setActiveConsoleTab('tests'); }}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeNavTab === 'verify'
-                  ? 'bg-[#EFF6FF] text-[#2563EB] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Verify</span>
-            </button>
-
-            <button
-              onClick={() => setActiveNavTab('reports')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeNavTab === 'reports'
-                  ? 'bg-[#EFF6FF] text-[#2563EB] shadow-xs'
-                  : 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC]'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Reports</span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Search & Profile Section */}
-        <div className="flex items-center space-x-4">
-          <div className="relative flex items-center">
-            <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-12 py-1.5 w-44 md:w-56 text-xs bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-[#0F172A] placeholder-[#94A3B8] focus:bg-white focus:outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] transition"
-            />
-            <span className="absolute right-2 text-[10px] text-[#94A3B8] font-mono border border-[#E2E8F0] bg-white px-1.5 py-0.5 rounded shadow-2xs">
-              Ctrl + K
-            </span>
-          </div>
-
-          <button className="p-1.5 text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] rounded-lg transition relative">
-            <Bell className="w-4 h-4" />
-            {vulnerabilities.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#EF4444]" />
-            )}
-          </button>
-
-          <div className="w-7 h-7 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#DBEAFE] flex items-center justify-center font-bold text-xs">
-            A
-          </div>
-        </div>
-      </header>
-
-      {/* ========================================================= */}
-      {/* B. PROJECT TOOLBAR                                        */}
-      {/* ========================================================= */}
-      <div className="h-12 border-b border-[#E2E8F0] bg-[#FFFFFF] px-4 flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center space-x-3">
           {/* Project Selector dropdown */}
           <div className="relative flex items-center">
             <Folder className="w-4 h-4 text-[#2563EB] absolute left-3 pointer-events-none" />
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="pl-9 pr-8 py-1.5 text-xs font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg appearance-none cursor-pointer hover:border-[#CBD5E1] focus:outline-none focus:border-[#2563EB] shadow-2xs min-w-[200px]"
+              className="pl-9 pr-8 py-1.5 text-xs font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg appearance-none cursor-pointer hover:border-[#CBD5E1] focus:outline-none focus:border-[#2563EB] shadow-2xs min-w-[210px] max-w-[260px] truncate"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -583,7 +486,7 @@ export const VsCodeStudio: React.FC = () => {
           </div>
 
           {/* AI Neural Net Provider Selector */}
-          <div className="flex items-center space-x-2 border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1.5 rounded-lg text-xs font-mono">
+          <div className="hidden md:flex items-center space-x-2 border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1.5 rounded-lg text-xs font-mono">
             <span className="text-[11px] font-bold text-[#64748B]">NEURAL_NET:</span>
             <div className="relative flex items-center">
               <select
@@ -600,7 +503,7 @@ export const VsCodeStudio: React.FC = () => {
           </div>
 
           {/* Real-time AI Status Indicator Badge */}
-          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all duration-300 shadow-2xs">
+          <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all duration-300 shadow-2xs">
             {isRepairing || isAnalyzing ? (
               <div className="flex items-center space-x-2 text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-2.5 py-1 rounded-md animate-pulse">
                 <span className="relative flex h-2 w-2">
@@ -630,8 +533,8 @@ export const VsCodeStudio: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-2">
+        {/* Right Section: Action Buttons */}
+        <div className="flex items-center space-x-2.5">
           {/* Hidden File Input */}
           <input
             type="file"
@@ -645,12 +548,12 @@ export const VsCodeStudio: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition shadow-2xs disabled:opacity-50"
+            className="flex items-center space-x-2 px-3 py-1.5 text-xs font-semibold text-[#334155] bg-white border border-[#CBD5E1] rounded-lg hover:bg-[#F8FAFC] hover:text-[#0F172A] hover:border-[#94A3B8] transition shadow-xs disabled:opacity-50"
           >
             {isUploading ? (
               <Loader2 className="w-3.5 h-3.5 text-[#2563EB] animate-spin" />
             ) : (
-              <Play className="w-3.5 h-3.5 text-[#64748B]" />
+              <Play className="w-3.5 h-3.5 text-[#475569]" />
             )}
             <span>Inject Payload</span>
           </button>
@@ -659,12 +562,12 @@ export const VsCodeStudio: React.FC = () => {
           <button
             onClick={handleExecuteAndAnalyze}
             disabled={isAnalyzing || !selectedProjectId}
-            className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition shadow-2xs disabled:opacity-50"
+            className="flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold text-[#0F172A] bg-white border border-[#CBD5E1] rounded-lg hover:bg-[#F8FAFC] hover:border-[#94A3B8] transition shadow-xs disabled:opacity-50"
           >
             {isAnalyzing ? (
               <Loader2 className="w-3.5 h-3.5 text-[#2563EB] animate-spin" />
             ) : (
-              <Zap className="w-3.5 h-3.5 text-[#0F172A]" />
+              <Zap className="w-3.5 h-3.5 text-[#D97706] fill-[#D97706]" />
             )}
             <span>Execute &amp; Analyze</span>
           </button>
@@ -673,7 +576,7 @@ export const VsCodeStudio: React.FC = () => {
           <button
             onClick={handleAiRepair}
             disabled={isRepairing || !selectedProjectId}
-            className="flex items-center space-x-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-lg transition shadow-xs disabled:opacity-50"
+            className="flex items-center space-x-2 px-4 py-1.5 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-lg transition shadow-sm hover:shadow disabled:opacity-50 active:scale-[0.98]"
           >
             {isRepairing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -683,7 +586,7 @@ export const VsCodeStudio: React.FC = () => {
             <span>AI Repair</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* ========================================================= */}
       {/* MAIN WORKSPACE BODY                                       */}
