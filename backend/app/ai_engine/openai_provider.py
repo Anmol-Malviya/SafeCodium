@@ -156,6 +156,7 @@ class OpenAIProvider(BaseAiProvider):
             target_arch=request.target_architecture,
             os_name=request.operating_system,
             repair_strategy=request.repair_strategy or "",
+            compiler_error_feedback=request.compiler_error_feedback,
         )
 
         try:

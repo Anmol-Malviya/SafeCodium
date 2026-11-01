@@ -39,6 +39,7 @@ class AiPatchRequest(BaseModel):
     target_architecture: str = "Xtensa / ARM Cortex-M"
     operating_system: str = "FreeRTOS"
     provider: Optional[str] = None
+    compiler_error_feedback: Optional[str] = None
 
 
 class AiPatchResponse(BaseModel):

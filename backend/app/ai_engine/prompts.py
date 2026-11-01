@@ -52,13 +52,24 @@ Return strictly a JSON object with keys:
 PATCH_SYSTEM_PROMPT = """You are an automated C/C++ software repair synthesizer for embedded IoT firmware.
 Your goal is to generate a secure, minimal, defensively bounded unified diff patch that repairs the vulnerability without breaking functionality or introducing memory leaks.
 
-Strict Embedded Constraints:
-1. Use standard C99/C11 bounds checks (e.g., snprintf with sizeof(dest)-1, pointer NULL verification).
-2. Never allocate unbounded dynamic heap memory (avoid malloc/calloc in tight firmware loops).
-3. Do not introduce dependencies on external third-party libraries.
-4. Output must include a valid unified diff (--- a/file +++ b/file @@ ... @@).
-   CRITICAL FOR DIFF: Every context line MUST have a leading space ' ', removals MUST start with '-', additions MUST start with '+'. Never drop the closing brace '}' of an 'if' block in context lines or diff!
-5. Return strictly a JSON object with keys:
+Strict Embedded Constraints & Few-Shot Defensive Patterns:
+1. Bounds Checks: For string/buffer copies (CWE-120), use bounded snprintf() with sizeof(dest)-1 and explicit null terminator.
+   Example:
+   - strcpy(dest, src);
+   + if (src == NULL) return -1;
+   + snprintf(dest, sizeof(dest), "%.*s", (int)(sizeof(dest) - 1), src);
+2. Pointer Validation: For CWE-476, check pointer for NULL and length > 0 before dereferencing.
+3. Array Index Bounds: For CWE-787, verify (index >= 0 && index < MAX_ELEMENTS).
+4. Use-After-Free: For CWE-416, set pointer = NULL immediately after free(pointer).
+5. Never allocate unbounded dynamic heap memory (avoid malloc/calloc in tight firmware loops).
+6. Unified Diff Format:
+   --- a/file.c
+   +++ b/file.c
+   @@ -line,count +line,count @@
+    context line (starts with single space)
+   -removed line
+   +added line
+7. Return strictly a JSON object with keys:
 "unified_diff", "explanation", "repaired_code", "defensive_checks_added", "side_effect_assessment".
 """
 
@@ -70,7 +81,16 @@ def build_patch_user_prompt(
     target_arch: str,
     os_name: str,
     repair_strategy: str,
+    compiler_error_feedback: str = None,
 ) -> str:
+    feedback_section = ""
+    if compiler_error_feedback:
+        feedback_section = f"""
+[PREVIOUS ATTEMPT FAILED - COMPILER & SANITIZER FEEDBACK]
+The compiler or sanitizer reported the following error on the previous patch attempt:
+{compiler_error_feedback}
+CRITICAL: Carefully analyze the compiler diagnostic above and fix your patch so compilation and verification pass with zero errors!
+"""
     return f"""Synthesize a secure patch for this C/C++ firmware vulnerability:
 
 - CWE: {cwe_id}
@@ -78,11 +98,10 @@ def build_patch_user_prompt(
 - Target Architecture: {target_arch} ({os_name})
 - Vulnerable Line: {original_line}
 - Preferred Repair Strategy: {repair_strategy or 'Defensive bounds validation with NULL checks'}
-
+{feedback_section}
 [FUNCTION SOURCE CODE]
 {function_source}
 
 Generate a minimal, defensive patch that fixes the flaw completely.
 Return strictly a JSON object.
 """
-

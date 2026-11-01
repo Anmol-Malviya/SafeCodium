@@ -35,6 +35,7 @@ class PatchSynthesizer:
         db: AsyncSession,
         custom_strategy: Optional[str] = None,
         provider: Optional[str] = "gemini",
+        compiler_error_feedback: Optional[str] = None,
     ) -> Tuple[Patch, AiPatchResponse]:
         """Synthesizes a minimal unified diff defensive patch and saves it to the database."""
         strategy = custom_strategy or cls.determine_strategy(vuln)
@@ -51,9 +52,10 @@ class PatchSynthesizer:
             target_architecture=bundle.target_architecture,
             operating_system=bundle.operating_system,
             provider=provider,
+            compiler_error_feedback=compiler_error_feedback,
         )
 
-        logger.info(f"Synthesizing patch for {vuln.cwe_id} via provider '{provider}'")
+        logger.info(f"Synthesizing patch for {vuln.cwe_id} via provider '{provider}' (Feedback present: {bool(compiler_error_feedback)})")
         ai_resp: AiPatchResponse = await ai_router.generate_patch(patch_req)
 
         # Validate that output contains unified diff syntax
@@ -85,4 +87,3 @@ class PatchSynthesizer:
 
         logger.info(f"Persisted synthesized patch {patch_record.id} for vulnerability {vuln.id}")
         return patch_record, ai_resp
-
