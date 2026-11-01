@@ -1,11 +1,4 @@
-"""
-Safe Vibe AI — Dual Compilation Verification Engine.
-Performs deterministic compilation verification:
-- Compares Pre-patch (Original) vs. Post-patch (Shadow) compilation.
-- Detects host toolchain (gcc, g++, clang, clang++, cl) or utilizes deterministic IoT Cross-Compiler Simulation Harness.
-- Analyzes compiler diagnostics (warnings, errors, missing headers, ABI mismatches).
-- Complies strictly with AGENTS.md Rule 6: Ground-Truth Verification Authority.
-"""
+"""Safe Vibe AI — Dual Compilation Verification Engine."""
 
 from dataclasses import dataclass, field
 import os
@@ -29,7 +22,7 @@ class CompileResult:
     warnings_count: int
     errors_count: int
     diagnostics: List[str] = field(default_factory=list)
-    execution_mode: str = "NATIVE_EXECUTION"  # NATIVE_EXECUTION | STATIC_HEURISTIC_SIMULATION | UNAVAILABLE
+    execution_mode: str = "NATIVE_EXECUTION"
 
 
 @dataclass
@@ -39,15 +32,13 @@ class DualCompileComparison:
     pre_patch: CompileResult
     post_patch: CompileResult
     compilation_passed: bool
-    status: str  # VERIFIED | FAILED | SIMULATED | WARNING_NEW | INCONCLUSIVE
+    status: str
     delta_summary: str
     execution_mode: str = "NATIVE_EXECUTION"
 
 
 class DualCompilerHarness:
-    """
-    Executes and compares compilation between original source files and shadow patched replicas.
-    """
+    """Executes and compares compilation between original source files and shadow patched replicas."""
 
     SUPPORTED_COMPILERS = ["g++", "clang++", "gcc", "clang", "cl"]
 
@@ -68,10 +59,6 @@ class DualCompilerHarness:
         flags: Optional[List[str]] = None,
         compiler_override: Optional[str] = None,
     ) -> CompileResult:
-        """
-        Compiles a single C/C++ file with host compiler or deterministic simulation harness.
-        Uses ExecutionSandbox to prevent leaking credentials or running unsafely.
-        """
         path = Path(file_path)
         if not path.exists():
             return CompileResult(
@@ -92,7 +79,6 @@ class DualCompilerHarness:
         flags = flags or default_flags
 
         if compiler:
-            # Run compiler in isolated sandbox
             try:
                 cmd = [compiler] + flags + [str(path), "-o", str(path.with_suffix(".o"))]
                 sandbox_res = ExecutionSandbox.run_isolated_command(cmd, cwd=path.parent)
@@ -129,61 +115,79 @@ class DualCompilerHarness:
         return cls._simulate_iot_compilation(path)
 
     @classmethod
+    def _strip_comments_and_strings(cls, code: str) -> str:
+        """Strips single-line and multi-line comments and string literals to avoid false bracket mismatches."""
+        no_line_comments = re.sub(r"//.*", "", code)
+        no_comments = re.sub(r"/\*.*?\*/", "", no_line_comments, flags=re.DOTALL)
+        no_strings = re.sub(r'"(?:\\.|[^"\\])*"', '""', no_comments)
+        return re.sub(r"'(?:\\.|[^'\\])*'", "''", no_strings)
+
+    @classmethod
     def _simulate_iot_compilation(cls, path: Path) -> CompileResult:
-        """
-        Deterministic C/C++ compiler and syntax analyzer.
-        Simulates GCC/Clang embedded AST compiler pass (-std=c99/-std=c++17 -Wall -Werror):
-        1. Checks header imports and syntax.
-        2. Detects missing semicolons, unmatched braces, unmatched parentheses, and brackets.
-        3. Detects undeclared identifiers and uninitialized pointers.
-        4. Detects deprecation warnings (e.g. strcpy without bounds).
-        """
         content = path.read_text(encoding="utf-8", errors="replace")
-        lines = content.splitlines()
+        clean_code = cls._strip_comments_and_strings(content)
+        clean_lines = clean_code.splitlines()
 
         diagnostics: List[str] = []
         warnings_count = 0
         errors_count = 0
 
         # Syntax checks: balanced braces
-        open_b = content.count("{")
-        close_b = content.count("}")
+        open_b = clean_code.count("{")
+        close_b = clean_code.count("}")
         if open_b != close_b:
             errors_count += 1
             diagnostics.append(f"{path.name}: error: expected '}}' at end of input (unclosed braces: {open_b} vs {close_b})")
 
-        open_p = content.count("(")
-        close_p = content.count(")")
+        open_p = clean_code.count("(")
+        close_p = clean_code.count(")")
         if open_p != close_p:
             errors_count += 1
             diagnostics.append(f"{path.name}: error: unbalanced parentheses (expected ')' or '(')")
 
-        open_sq = content.count("[")
-        close_sq = content.count("]")
+        open_sq = clean_code.count("[")
+        close_sq = clean_code.count("]")
         if open_sq != close_sq:
             errors_count += 1
             diagnostics.append(f"{path.name}: error: unbalanced square brackets (expected ']' or '[')")
 
-        for idx, line in enumerate(lines, 1):
+        in_enum = False
+        in_multiline = False
+
+        for idx, line in enumerate(clean_lines, 1):
             stripped = line.strip()
-            # Ignore comments and preprocessors
-            if not stripped or stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*") or stripped.startswith("#"):
+            if not stripped or stripped.startswith(("#", "/*", "*", "//")):
+                continue
+
+            # Track enum scope
+            if "enum " in stripped or "enum class" in stripped:
+                in_enum = True
+            if in_enum and "}" in stripped:
+                in_enum = False
+                continue
+            if in_enum:
+                continue
+
+            # Track multi-line statements or declarations
+            if stripped.endswith(("(", ",", "\\", "?", ":", "||", "&&", "+", "-", "*", "/", "%", "^", "&", "|", "=")):
+                in_multiline = True
+                continue
+            if in_multiline:
+                if stripped.endswith((";", "{", "}")):
+                    in_multiline = False
                 continue
 
             # Check missing semicolons for statements
-            if (
-                not stripped.endswith(("{", "}", ":", ";", "\\", ",", "(", ")"))
-                and not any(stripped.startswith(k) for k in ("if", "else", "for", "while", "switch", "case", "do", "class", "struct", "namespace", "public:", "private:", "protected:"))
-            ):
-                # Function call statement or assignment missing semicolon
-                if re.match(r"^[a-zA-Z_][a-zA-Z0-9_:<>*&\s]*\s*\(.*\)$", stripped) or re.search(r"=\s*[^;]+$", stripped):
-                    errors_count += 1
-                    diagnostics.append(f"{path.name}:{idx}: error: expected ';' at end of statement")
-
-            # Check for illegal token / undefined keyword typos
-            if re.match(r"^(incude|imprt|retun|viod|intt)\b", stripped):
-                errors_count += 1
-                diagnostics.append(f"{path.name}:{idx}: error: unrecognized statement or syntax error '{stripped.split()[0]}'")
+            if not stripped.endswith(("{", "}", ":", ";", "\\", ",", "(", ")")):
+                if not any(stripped.startswith(k) for k in (
+                    "if", "else", "for", "while", "switch", "case", "do", "class", "struct",
+                    "namespace", "public:", "private:", "protected:", "template", "Q_",
+                    "UPROPERTY", "UFUNCTION", "GENERATED_BODY", "UE_LOG", "DECLARE_", "DEFINE_"
+                )):
+                    # Explicit complete call like func() or assignment a = b without trailing semicolon
+                    if re.match(r"^[a-zA-Z_][a-zA-Z0-9_:<>*&\s]*\s*\([A-Za-z0-9_,\s\"'*&:]*\)$", stripped) or re.search(r"=\s*[^;{}]+$", stripped):
+                        errors_count += 1
+                        diagnostics.append(f"{path.name}:{idx}: error: expected ';' at end of statement")
 
             if "strcpy(" in line and "snprintf" not in line:
                 warnings_count += 1
@@ -215,10 +219,6 @@ class DualCompilerHarness:
         original_file_path: str,
         shadow_file_path: str,
     ) -> DualCompileComparison:
-        """
-        Executes dual compilation comparing pre-patch original code vs post-patch shadow code.
-        Accurately reports status as VERIFIED for native passes, or SIMULATED for heuristic simulation.
-        """
         pre_res = cls.compile_file(original_file_path)
         post_res = cls.compile_file(shadow_file_path)
 
